@@ -1,0 +1,32 @@
+# Guardrail CI scene (11-safety §5.1): one railed arm facing a low table
+# (x span 0.30..0.60, top z = 0.10) with a tall pedestal column behind it
+# (x span 0.62..0.78, z up to 0.85). Home TCP sits at (0.4, 0, 0.335):
+# a -z twist descends onto the table (env_table_descend); a +x twist at
+# constant height clears the table top and sweeps into the pedestal
+# (env_pedestal_sweep).
+id: guardrail_env
+description: guardrail CI cell - railed arm vs table and pedestal
+suitable_for: [sim, twin]
+arms:
+  - id: arm0
+    model: xarm7_on_rail
+    base_pos: [0.0, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: false
+cameras:
+  - name: cam_front
+    pos: [2.0, 0.0, 1.2]
+    xyaxes: [0, 1, 0, -0.5, 0, 1]
+    fovy: 45
+environment:
+  - name: table
+    type: box
+    size: [0.15, 0.75, 0.05]
+    pos: [0.45, 0.0, 0.05]
+    rgba: [0.6, 0.45, 0.3, 1.0]
+  - name: pedestal
+    type: box
+    size: [0.08, 0.08, 0.425]
+    pos: [0.7, 0.0, 0.425]
+    rgba: [0.4, 0.4, 0.5, 1.0]

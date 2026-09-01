@@ -1,0 +1,30 @@
+# Guardrail CI scene (11-safety §5.1): two railed arms on COLINEAR rails
+# along world +Y (arm0 travel spans y in [-0.65, 0], arm1 in [0, 0.65]).
+# Keyframe parks arm0 at rail 0.05 (base y = -0.6) and arm1 at rail 0.45
+# (base y = 0.45): a sustained +y twist on arm0 exhausts the joint
+# workspace and forces rail travel converging on arm1
+# (cross_arm_rail_converge).
+id: guardrail_rail
+description: guardrail CI cell - colinear rails converging along +Y
+suitable_for: [sim, twin]
+arms:
+  - id: arm0
+    model: xarm7_on_rail
+    base_pos: [0.0, -0.65, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: false
+  - id: arm1
+    model: xarm7_on_rail
+    base_pos: [0.0, 0.0, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: false
+cameras:
+  - name: cam_front
+    pos: [2.2, 0.0, 1.2]
+    xyaxes: [0, 1, 0, -0.5, 0, 1]
+    fovy: 45
+keyframe:
+  arm0: { q: [0.05, 0, -0.247, 0, 0.909, 0, 1.15644, 0], gripper: 1.0 }
+  arm1: { q: [0.45, 0, -0.247, 0, 0.909, 0, 1.15644, 0], gripper: 1.0 }

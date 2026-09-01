@@ -21,9 +21,30 @@ class SceneCompileError(SceneError):
     """``MjSpec.compile()`` failed (wraps ``mujoco.FatalError``/``ValueError``)."""
 
 
+class TwinAuditError(ApolloError):
+    """Unexplained at-home contacts under inflation: refuse to arm the gate."""
+
+
+class IKUnreachableError(ApolloError):
+    """``solve_to_convergence`` failed from every restart seed.
+
+    Carries the best (non-converged) :class:`~apollo_xarm7_core.IKResult`.
+    """
+
+    def __init__(self, best_result) -> None:
+        self.best_result = best_result
+        super().__init__(
+            "IK did not converge from any restart seed "
+            f"(best pos_err={best_result.pos_err_m:.4f} m, "
+            f"rot_err={best_result.rot_err_rad:.4f} rad)"
+        )
+
+
 __all__ = [
     "SceneError",
     "SceneNotFoundError",
     "SceneArmMismatchError",
     "SceneCompileError",
+    "TwinAuditError",
+    "IKUnreachableError",
 ]

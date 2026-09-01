@@ -8,6 +8,9 @@
   "rail/linear_motor_rail.stl": "20776905799d4d0e4e55bfd03ae86e8b2d88b4da6b057a8c52c88f6e44a28bff",
   "scenes/dual_mixed.yaml": "4deee59a5c977e32b127d39ff40855be30c28acc9130bc7b4dae1625ec5528eb",
   "scenes/dual_rail_tabletop.yaml": "bc385f8a3d7debffbbc25a0af03b46352455531884313159fe4c519515466f08",
+  "scenes/guardrail_env.yaml": "b820fc5bab29253f7b097beb34f133e93929a0901f183ee2be969ab6faf978a8",
+  "scenes/guardrail_face.yaml": "a7ebd84a3a82d7777fd73069ab1b4e4f01ed43b21c59e598c9164e6d80aa0bcd",
+  "scenes/guardrail_rail.yaml": "e8316e34994eb356bb03b9c25e5cf51c15f88c9463607a34a4dfe1426f359680",
   "scenes/single_fixed_tabletop.yaml": "69795653f106e11f5ecac9b86c4f0fc85e156a70bb729ecac001f3b90a8115cd",
   "scenes/single_rail.yaml": "9850f6714e1cf3774f35fe4b6e0b150ebb531fc9fc1a1921d8e63dbe58de77d5",
   "scenes/triple_rail_row.yaml": "db5ec8ee138691f40d8d618e748f76c7763b607f8065662507de28f8b3e76c31",
@@ -32,6 +35,6 @@
   "ufactory_xarm7/hand.xml": "2b404c4470c7998003f573cfc90c4fb513ef1b4d34b2fddccecbd3ef4a0e91a2",
   "ufactory_xarm7/xarm7.xml": "ac6b369e0b9c5abdaca55d2c6c048102f2e1133bf550b059a8622afa4b9da433",
   "ufactory_xarm7/xarm7_nohand.xml": "90bcc0e2fbbe5fa95dbbafb74e56bd0106ecc6f5767a4dc3e7c511016efc023c",
-  "xarm7_fixed.xml": "036ed57c012a89e399debe79f62fd0a370d32ce64d5115d76d1dc6730acd4726",
-  "xarm7_on_rail.xml": "b6892b486b7b83a2b840c24d4a390ed496428cfa2d9884d3aca3c666ea0eee28"
+  "xarm7_fixed.xml": "2ac72a46159a1e5b9fcbc7b88d031b1066a0575a87877913b026de8ee447eb55",
+  "xarm7_on_rail.xml": "46ec918909b36091e3c5ef503a31995d64ff9be84b930d6b1f2031e96bf4ed23"
 }

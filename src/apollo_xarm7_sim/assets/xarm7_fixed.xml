@@ -185,6 +185,11 @@
     <!-- parent-child auto-filter is disabled when the parent is welded to
          the world (03-sim §8 gotcha) — exclude explicitly. -->
     <exclude body1="link_base" body2="link1"/>
+    <!-- Adjacent-hull pairs flagged by the twin's at-home inflation audit
+         (phase-03, delta = 0.025 m). -->
+    <exclude body1="left_outer_knuckle" body2="right_outer_knuckle"/>
+    <exclude body1="left_finger" body2="xarm_gripper_base_link"/>
+    <exclude body1="right_finger" body2="xarm_gripper_base_link"/>
   </contact>
 
   <tendon>

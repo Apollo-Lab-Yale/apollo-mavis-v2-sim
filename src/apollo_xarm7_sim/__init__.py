@@ -9,10 +9,12 @@ context; rendering is lazily initialized inside the render thread.
 from .assets import asset_path
 from .cameras import SimCamera
 from .errors import (
+    IKUnreachableError,
     SceneArmMismatchError,
     SceneCompileError,
     SceneError,
     SceneNotFoundError,
+    TwinAuditError,
 )
 from .gripper import (
     DRIVER_CLOSED_RAD,
@@ -23,6 +25,8 @@ from .gripper import (
     open_frac_to_ctrl,
     open_frac_to_meters,
 )
+from .ik import IKParams, MinkIKSolver, default_collision_pairs
+from .planner import PlannerParams, ResetPlanner, time_parameterize
 from .rendering import RenderService, StreamSpec
 from .scenes import (
     REGISTRY,
@@ -35,6 +39,7 @@ from .scenes import (
     SceneRegistry,
     build_scene,
 )
+from .twin import AllowedPairs, DigitalTwin, apply_inflation, build_monitored_pairs
 from .workcell import CTRL_DT, SimArm, SimWorkcell, WorkcellSnapshot
 
 __version__ = "0.1.0"
@@ -69,9 +74,24 @@ __all__ = [
     "ctrl_to_open_frac",
     "driver_q_to_open_frac",
     "open_frac_to_meters",
+    # twin / safety
+    "DigitalTwin",
+    "AllowedPairs",
+    "apply_inflation",
+    "build_monitored_pairs",
+    # ik
+    "MinkIKSolver",
+    "IKParams",
+    "default_collision_pairs",
+    # planner
+    "ResetPlanner",
+    "PlannerParams",
+    "time_parameterize",
     # errors
     "SceneError",
     "SceneNotFoundError",
     "SceneArmMismatchError",
     "SceneCompileError",
+    "TwinAuditError",
+    "IKUnreachableError",
 ]

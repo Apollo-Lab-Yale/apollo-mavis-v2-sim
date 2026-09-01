@@ -1,0 +1,25 @@
+# Guardrail CI scene (11-safety §5.1): two railed arms facing each other
+# along world X (arm1 rotated 180 deg about Z), home TCPs 0.2 m apart at
+# (-0.1|+0.1, 0, 0.335). cross_arm_head_on drives arm0 +x into arm1's
+# gripper; no environment obstacles between them.
+id: guardrail_face
+description: guardrail CI cell - two railed arms facing each other
+suitable_for: [sim, twin]
+arms:
+  - id: arm0
+    model: xarm7_on_rail
+    base_pos: [-0.5, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: false
+  - id: arm1
+    model: xarm7_on_rail
+    base_pos: [0.5, 0.325, 0.107188]
+    base_quat: [0, 0, 0, 1]
+    gripper: xarm
+    wrist_cam: false
+cameras:
+  - name: cam_front
+    pos: [0.0, 2.2, 1.2]
+    xyaxes: [-1, 0, 0, 0, -0.5, 1]
+    fovy: 45

@@ -213,6 +213,26 @@ class SimWorkcell(WorkcellInterface):
     def tick_count(self) -> int:
         return self._tick
 
+    def step_virtual(self, n_ticks: int = 1) -> None:
+        """Advance physics synchronously by whole control ticks (no pacing).
+
+        For virtual-tick harnesses (guardrail CI, tests): same ctrl-write +
+        substep sequence as the stepping thread, but on the caller's thread
+        and without wall-clock sleeps. Refuses while the thread runs.
+        """
+        if self._running:
+            raise RuntimeError("step_virtual requires the stepping thread stopped")
+        for _ in range(n_ticks):
+            with self._cmd_lock:
+                self._data.ctrl[:] = self._targets
+            mujoco.mj_step(self._model, self._data, nstep=self._nsub)
+            self._tick += 1
+            self._publish_snapshot()
+            if self._render_service is not None:
+                self._render_service.submit_state(
+                    SIM_SOURCE, self._data.qpos, self._data.time
+                )
+
     def inject_fault(self, arm_id: str, code: int) -> None:
         """Tests only: latch an error code on one arm until clear_errors()."""
         if arm_id not in self.arms:
