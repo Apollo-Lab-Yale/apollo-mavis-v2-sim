@@ -1,0 +1,12 @@
+source: https://github.com/M4D-SC1ENTIST/mavis_mujoco
+path: mavis_mujoco_gym/envs/MJCF/assets/
+commit: ea233197700047a2f40af3e4817083504b153199
+vendored: 2026-09-01
+license: BSD-3-Clause (inherited from mujoco_menagerie per the repo LICENSE)
+files: d435_with_cam_stand.stl
+notes: |
+  Wrist-mounted Intel RealSense D435 + mount stand mesh. Used for the
+  wrist-camera body on link7 plus <camera name="wrist_cam"
+  pos="0.07 0 0.05" quat="0 0.7071 0.7071 0" fovy="57"/> (fovy 57 deg is
+  approximately the D435 vertical FoV), per mavis
+  xarm7_with_camera_and_rail.xml.

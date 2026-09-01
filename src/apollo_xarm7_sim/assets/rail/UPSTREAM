@@ -1,0 +1,13 @@
+source: https://github.com/M4D-SC1ENTIST/mavis_mujoco
+path: mavis_mujoco_gym/envs/MJCF/assets/
+commit: ea233197700047a2f40af3e4817083504b153199
+vendored: 2026-09-01
+license: BSD-3-Clause (inherited from mujoco_menagerie per the repo LICENSE)
+files: linear_motor_rail.stl, linear_motor_platform.stl
+notes: |
+  Only existing mesh of our linear rail. The mavis joint models 0.74 m
+  travel (range="-0.37 0.37") which is WRONG for our hardware; the real
+  rail travel is 0.65 m and ../xarm7_on_rail.xml uses range="0 0.65"
+  directly (no mid-travel re-zeroing). Mesh geometry is UNVERIFIED against
+  the real hardware — do not trust twin clearances near the rail until
+  measured (phase-09 calibration item).

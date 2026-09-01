@@ -1,0 +1,35 @@
+# Two railed arms on opposite sides of a low table, rails parallel to
+# world Y. The right arm is rotated 180 deg about Z so both face the table;
+# its rail travel therefore runs along world -Y.
+# The explicit keyframe exercises descriptor-authored initial states:
+# q is MJCF qpos order (rail slide FIRST) — scene authoring only.
+id: dual_rail_tabletop
+description: two railed arms facing a low table
+suitable_for: [sim, twin]
+arms:
+  - id: left
+    model: xarm7_on_rail
+    base_pos: [-0.75, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+  - id: right
+    model: xarm7_on_rail
+    base_pos: [0.75, 0.325, 0.107188]
+    base_quat: [0, 0, 0, 1]
+    gripper: xarm
+    wrist_cam: true
+cameras:
+  - name: cam_front
+    pos: [0.0, 2.2, 1.4]
+    xyaxes: [-1, 0, 0, 0, -0.55, 1]
+    fovy: 45
+environment:
+  - name: table
+    type: box
+    size: [0.3, 0.5, 0.15]
+    pos: [0.0, 0.0, 0.15]
+    rgba: [0.6, 0.45, 0.3, 1.0]
+keyframe:
+  left: { q: [0.325, 0, -0.247, 0, 0.909, 0, 1.15644, 0], gripper: 1.0 }
+  right: { q: [0.325, 0, -0.247, 0, 0.909, 0, 1.15644, 0], gripper: 1.0 }

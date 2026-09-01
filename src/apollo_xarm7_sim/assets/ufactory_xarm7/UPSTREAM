@@ -1,0 +1,13 @@
+source: https://github.com/google-deepmind/mujoco_menagerie
+path: ufactory_xarm7/
+commit: da76818e269b82289eba39808e2fb91d679d6994
+vendored: 2026-09-01
+license: BSD-3-Clause (UFACTORY Inc.) — see LICENSE
+files: xarm7.xml, xarm7_nohand.xml, hand.xml, assets/*.stl (16 meshes), LICENSE
+notes: |
+  Current menagerie copy, post 2024-12-17 grasping fix (finger pad_box1/
+  pad_box2 collision pads, armature=0.1 on arm joints). Files vendored
+  verbatim; the composed child models (../xarm7_on_rail.xml and
+  ../xarm7_fixed.xml) reference these meshes and body trees but remove the
+  link_base pos="0 0 .12" pedestal offset. TCP site link_tcp stays at
+  0 0 .172 (menagerie value; the mavis fork's 0.165 is rejected).

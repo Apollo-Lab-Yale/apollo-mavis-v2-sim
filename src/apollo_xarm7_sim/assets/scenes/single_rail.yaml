@@ -1,0 +1,18 @@
+# One railed arm, rail running along world +Y. base_pos places the RAIL
+# ORIGIN (link_base pose at rail qpos 0); z = 0.107188 puts the rail feet
+# on the floor (rail mesh bottom offset below the platform top).
+id: single_rail
+description: one rail-mounted xArm7, 0.65 m travel along +Y
+suitable_for: [sim, twin]
+arms:
+  - id: arm0
+    model: xarm7_on_rail
+    base_pos: [0.0, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+cameras:
+  - name: cam_front
+    pos: [2.0, 0.0, 1.2]
+    xyaxes: [0, 1, 0, -0.5, 0, 1]
+    fovy: 45

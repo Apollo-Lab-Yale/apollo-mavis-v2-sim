@@ -1,0 +1,24 @@
+# Mixed composition: one railed arm plus one fixed arm (no wrist camera on
+# the fixed one) facing each other. Exercises rail/no-rail and wrist-cam
+# on/off in a single scene; sim-only.
+id: dual_mixed
+description: one railed and one fixed arm facing each other
+suitable_for: [sim]
+arms:
+  - id: rail0
+    model: xarm7_on_rail
+    base_pos: [-0.6, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+  - id: fix0
+    model: xarm7_fixed
+    base_pos: [0.6, 0.0, 0.0]
+    base_quat: [0, 0, 0, 1]
+    gripper: xarm
+    wrist_cam: false
+cameras:
+  - name: cam_front
+    pos: [0.0, 2.2, 1.4]
+    xyaxes: [-1, 0, 0, 0, -0.55, 1]
+    fovy: 45

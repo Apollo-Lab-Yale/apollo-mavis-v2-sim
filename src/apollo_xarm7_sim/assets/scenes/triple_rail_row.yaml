@@ -1,0 +1,30 @@
+# Three railed arms in a row along world X, rails parallel to world Y.
+# 0.9 m base spacing keeps home postures collision-free while rail travel
+# overlaps neighbouring workspaces mid-rail.
+id: triple_rail_row
+description: three railed arms in a row, rails parallel along +Y
+suitable_for: [sim, twin]
+arms:
+  - id: arm0
+    model: xarm7_on_rail
+    base_pos: [-0.9, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+  - id: arm1
+    model: xarm7_on_rail
+    base_pos: [0.0, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+  - id: arm2
+    model: xarm7_on_rail
+    base_pos: [0.9, -0.325, 0.107188]
+    base_quat: [1, 0, 0, 0]
+    gripper: xarm
+    wrist_cam: true
+cameras:
+  - name: cam_front
+    pos: [2.8, 0.0, 1.6]
+    xyaxes: [0, 1, 0, -0.5, 0, 1]
+    fovy: 55
