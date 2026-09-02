@@ -12,6 +12,7 @@ from .descriptor import (
     SceneMeta,
     SceneOptions,
     SceneOverrides,
+    SceneView,
 )
 from .registry import REGISTRY, SceneRegistry
 
@@ -30,6 +31,7 @@ __all__ = [
     "SceneMeta",
     "SceneOptions",
     "SceneOverrides",
+    "SceneView",
     "SceneRegistry",
     "REGISTRY",
 ]

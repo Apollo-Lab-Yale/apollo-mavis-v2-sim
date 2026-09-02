@@ -10,6 +10,7 @@ import pytest
 from apollo_xarm7_core import Pose
 
 from apollo_xarm7_sim import REGISTRY, SceneArmMismatchError, SceneNotFoundError, SceneOverrides
+from apollo_xarm7_sim.scenes import SceneView, build_scene
 from apollo_xarm7_sim.scenes.builder import HOME_Q, RAIL_HOME_M
 
 ALL_SCENES = ["single_fixed_tabletop", "single_rail", "dual_rail_tabletop",
@@ -192,3 +193,18 @@ def test_arm_id_prefix_of_another_arm_is_rejected():
                 {"id": "cam_2", "model": "xarm7_on_rail", "base_pos": (1.0, 0.0, 0.107188)},
             ),
         )
+
+
+def test_view_field_sets_the_free_camera_defaults():
+    """``view`` -> ``<visual><global azimuth elevation>``; absent -> MuJoCo defaults untouched."""
+    assert SceneView() == SceneView(azimuth=90.0, elevation=-45.0)  # MuJoCo's own defaults
+    base = REGISTRY.descriptor("single_rail")
+    assert base.view is None
+    g = REGISTRY.build("single_rail").model.vis.global_
+    assert (g.azimuth, g.elevation) == (90.0, -45.0)
+    desc = base.model_copy(update={"view": SceneView(azimuth=-90.0, elevation=-30.0)})
+    built = build_scene(desc)
+    g = built.model.vis.global_
+    assert (g.azimuth, g.elevation) == (-90.0, -30.0)
+    g2 = mujoco.MjModel.from_xml_string(built.xml).vis.global_  # persisted with the episode XML
+    assert (g2.azimuth, g2.elevation) == (-90.0, -30.0)

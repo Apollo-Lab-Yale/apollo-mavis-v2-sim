@@ -34,6 +34,19 @@ class OffscreenSpec(BaseModel):
     height: int = 1080
 
 
+class SceneView(BaseModel):
+    """Default MuJoCo free camera (``<visual><global azimuth elevation>``).
+
+    The free camera (``Renderer.update_scene(camera=-1)``, the runtime ``sim``
+    stream) orbits the model statistic centre; azimuth 90 puts it at -Y looking
+    +Y (MuJoCo default), -90 at +Y looking -Y. Defaults mirror MuJoCo's.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    azimuth: float = 90.0
+    elevation: float = -45.0
+
+
 class ArmSpec(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: str
@@ -93,6 +106,7 @@ class SceneDescriptor(BaseModel):
     suitable_for: tuple[Literal["sim", "twin"], ...] = ("sim", "twin")
     options: SceneOptions = SceneOptions()
     offscreen: OffscreenSpec = OffscreenSpec()
+    view: SceneView | None = None  # None -> MuJoCo's free-camera defaults untouched
     arms: tuple[ArmSpec, ...] = Field(min_length=1, max_length=3)
     cameras: tuple[CameraSpec, ...] = ()
     environment: tuple[EnvironmentSpec, ...] = ()
@@ -161,6 +175,7 @@ __all__ = [
     "ARM_MODELS",
     "SceneOptions",
     "OffscreenSpec",
+    "SceneView",
     "ArmSpec",
     "CameraSpec",
     "EnvironmentSpec",

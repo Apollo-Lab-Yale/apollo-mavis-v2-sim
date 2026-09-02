@@ -134,6 +134,9 @@ def _apply_options(spec: mujoco.MjSpec, desc: SceneDescriptor) -> None:
         spec.option.disableflags |= mujoco.mjtDisableBit.mjDSBL_MULTICCD
     spec.visual.global_.offwidth = desc.offscreen.width
     spec.visual.global_.offheight = desc.offscreen.height
+    if desc.view is not None:  # default free camera (runtime "sim" stream)
+        spec.visual.global_.azimuth = desc.view.azimuth
+        spec.visual.global_.elevation = desc.view.elevation
 
 
 def _add_lights_cameras_environment(spec: mujoco.MjSpec, desc: SceneDescriptor) -> None:

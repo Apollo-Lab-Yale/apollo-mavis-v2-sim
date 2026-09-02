@@ -11,7 +11,7 @@
   "scenes/guardrail_env.yaml": "b820fc5bab29253f7b097beb34f133e93929a0901f183ee2be969ab6faf978a8",
   "scenes/guardrail_face.yaml": "a7ebd84a3a82d7777fd73069ab1b4e4f01ed43b21c59e598c9164e6d80aa0bcd",
   "scenes/guardrail_rail.yaml": "e8316e34994eb356bb03b9c25e5cf51c15f88c9463607a34a4dfe1426f359680",
-  "scenes/mavis_v2.yaml": "14fb5c4beba397b686bdc930554b615da6888945e7ccce19fd3f49890c6f7447",
+  "scenes/mavis_v2.yaml": "3f1d092eb9fdf728c38f478c807a685f1149254894ba966ed00c2656132a7a05",
   "scenes/single_fixed_tabletop.yaml": "69795653f106e11f5ecac9b86c4f0fc85e156a70bb729ecac001f3b90a8115cd",
   "scenes/single_rail.yaml": "9850f6714e1cf3774f35fe4b6e0b150ebb531fc9fc1a1921d8e63dbe58de77d5",
   "scenes/triple_rail_row.yaml": "db5ec8ee138691f40d8d618e748f76c7763b607f8065662507de28f8b3e76c31",
