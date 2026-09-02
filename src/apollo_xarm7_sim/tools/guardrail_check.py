@@ -12,7 +12,7 @@ Run:  uv run python -m apollo_xarm7_sim.tools.guardrail_check --all
 
 Scenarios: ``env_table_descend`` / ``env_pedestal_sweep`` (arm↔environment),
 ``cross_arm_head_on`` / ``cross_arm_rail_converge`` (arm↔arm),
-``mavis_v2_obstacle_descend`` (the lab cell's gripper arm onto its obstacle). Assertion
+``mavis_v2_rail_sweep`` (the lab cell's gripper arm along the channel into its obstacle). Assertion
 contract A1–A5 in ``_assert_*`` below. Ground truth = the *physics* model
 with zero inflation: any sim contact ``dist <= 0`` between geoms matching
 ``target_pair_prefixes`` is a real-contact failure.
@@ -225,17 +225,19 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             graze_twist=_tw(0.0, 0.10, 0.02, 0.0, 0.0, 0.0),
             graze_ticks=1100,
         ),
-        # Lab cell (mavis_v2): the gripper arm's ready pose hovers ~0.145 m
-        # above the untouchable obstacle beside its base; drive it straight
-        # down onto the top. Graze: sweep -X at constant height over the top.
+        # Lab cell (mavis_v2): the untouchable obstacle stands at the LEFT end
+        # of the channel; the gripper arm starts at rail zero (right end) with
+        # the TCP below the obstacle top and is driven -X along the channel —
+        # the IK carries the rail along — until its face is reached. Graze:
+        # same sweep while rising 3 cm/s, clearing the top by ~8 cm.
         GuardrailScenario(
-            scenario_id="mavis_v2_obstacle_descend",
+            scenario_id="mavis_v2_rail_sweep",
             scene_id="mavis_v2",
             driven_arm="grip",
-            twist=_tw(0.0, 0.0, -0.12, 0.0, 0.0, 0.0),
+            twist=_tw(-0.12, 0.0, 0.0, 0.0, 0.0, 0.0),
             target_pair_prefixes=("grip_", "obstacle"),
-            graze_twist=_tw(-0.10, 0.0, 0.0, 0.0, 0.0, 0.0),
-            graze_ticks=300,
+            graze_twist=_tw(-0.12, 0.0, 0.03, 0.0, 0.0, 0.0),
+            graze_ticks=520,
         ),
     )
 }

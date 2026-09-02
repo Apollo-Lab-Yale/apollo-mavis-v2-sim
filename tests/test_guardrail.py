@@ -18,7 +18,7 @@ def test_scenario_table_is_complete():
         "env_pedestal_sweep",
         "cross_arm_head_on",
         "cross_arm_rail_converge",
-        "mavis_v2_obstacle_descend",
+        "mavis_v2_rail_sweep",
     }
     for s in SCENARIOS.values():
         assert s.twist.shape == (6,)

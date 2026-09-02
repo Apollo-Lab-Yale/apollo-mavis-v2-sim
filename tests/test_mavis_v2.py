@@ -66,8 +66,10 @@ def test_rails_same_orientation_zero_at_the_right_end(built):
     view, grip = model.body("view_rail_base").pos, model.body("grip_rail_base").pos
     assert view[0] == grip[0]  # both arms share the rail-zero X
     assert view[1] > grip[1]  # camera arm on the outer rail, gripper arm inward
-    # rail zero: arm base RIGHT side 14 cm from the right table edge
-    np.testing.assert_allclose(view[0] + BASE_R, HALF_L - 0.14, atol=1e-3)
+    # the rails' zero end is flush with the table's right edge (mesh: 0.2476 m past the base)
+    np.testing.assert_allclose(view[0] + 0.2476, HALF_L, atol=1e-3)
+    # ... which puts the carriage's right edge ~15 cm from it (user: "arm ~14 cm")
+    assert 0.13 <= HALF_L - (view[0] + 0.098) <= 0.16
 
 
 def test_rail_offsets_from_the_outer_edge(desc):
@@ -78,18 +80,18 @@ def test_rail_offsets_from_the_outer_edge(desc):
     assert grip_y + RAIL_ACROSS[0] > -HALF_W  # plate edge stays on the table (0.66 cm)
 
 
-def test_obstacle_at_the_right_end_of_the_channel(built):
+def test_obstacle_at_the_left_end_of_the_channel(built):
     model = built.model
     o = model.geom("obstacle")
     np.testing.assert_allclose(o.size, [0.08, 0.08, 0.12])  # 16 x 16 x 24 cm
-    np.testing.assert_allclose(o.pos[0] + o.size[0], HALF_L)  # flush against the right edge
+    np.testing.assert_allclose(o.pos[0] - o.size[0], -HALF_L)  # flush against the LEFT edge
     np.testing.assert_allclose(o.pos[2] - o.size[2], TABLE_TOP_Z)  # standing on the table
-    view_y, grip_y = model.body("view_rail_base").pos[1], model.body("grip_rail_base").pos[1]
-    inner, outer = o.pos[1] - o.size[1], o.pos[1] + o.size[1]
-    assert outer < view_y + RAIL_ACROSS[0]  # clear of the camera rail's plate
-    assert inner > grip_y + CARRIAGE_ACROSS[1]  # clear of the gripper carriage sweep
-    # measured depth ~27.5 cm from the outer edge; modelled 23.8 (mesh rail/carriage width)
-    assert 0.22 <= HALF_W - outer <= 0.28
+    np.testing.assert_allclose(HALF_W - (o.pos[1] + o.size[1]), 0.275)  # 27.5 cm from outer edge
+    view_y = model.body("view_rail_base").pos[1]
+    assert o.pos[1] + o.size[1] < view_y + RAIL_ACROSS[0]  # clear of the camera rail's plate
+    # the gripper carriage never reaches it: 0.65 m of travel ends >5 cm short of its face
+    grip_x = model.body("grip_rail_base").pos[0]
+    assert (grip_x - 0.65 - 0.098) - (o.pos[0] + o.size[0]) > 0.05
 
 
 def test_camera_only_arm_tool_is_collidable(built):
@@ -108,14 +110,13 @@ def test_twin_audit_clean_and_structural_pairs_whitelisted(built, delta):
     labels = geom_labels(twin.model)
     monitored = {frozenset((labels[g1], labels[g2])) for g1, g2 in twin.monitored_pairs}
     assert frozenset(("view_rail_platform", "table")) not in monitored
-    assert frozenset(("grip_rail_platform", "obstacle")) not in monitored  # slides past it
     assert frozenset(("grip_link5", "obstacle")) in monitored  # real hazards stay monitored
-    assert frozenset(("grip_link_base", "obstacle")) in monitored
+    assert frozenset(("grip_rail_platform", "obstacle")) in monitored
     assert frozenset(("view_d435_mount", "grip_link5")) in monitored
 
 
-def test_keyframe_rails_at_zero_and_gripper_hovering_over_the_obstacle(built):
-    """Premise of the guardrail scenario ``mavis_v2_obstacle_descend`` (-z onto the top)."""
+def test_keyframe_rails_at_zero_and_gripper_ready_in_the_channel(built):
+    """Premise of the guardrail scenario ``mavis_v2_rail_sweep`` (-X along the channel)."""
     model, data = built.model, mujoco.MjData(built.model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
@@ -124,6 +125,7 @@ def test_keyframe_rails_at_zero_and_gripper_hovering_over_the_obstacle(built):
     sid = model.site("grip_link_tcp").id
     tcp, tool_z = data.site_xpos[sid], data.site_xmat[sid].reshape(3, 3)[:, 2]
     o = model.geom("obstacle")
-    assert abs(tcp[0] - o.pos[0]) < o.size[0] and abs(tcp[1] - o.pos[1]) < o.size[1]  # over it
-    assert 0.10 <= tcp[2] - (o.pos[2] + o.size[2]) <= 0.20  # ~0.145 m above the top
+    assert abs(tcp[1] - o.pos[1]) < o.size[1]  # inside the obstacle's y span
+    assert TABLE_TOP_Z + 0.1 < tcp[2] < o.pos[2] + o.size[2]  # below the obstacle top
+    assert tcp[0] > o.pos[0] + o.size[0] + 0.4  # far to the right of it (rail sweep to reach)
     assert tool_z[2] < -0.98  # tool pointing straight down

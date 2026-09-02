@@ -17,36 +17,36 @@
 #   gripper arm 'grip': 39.5 cm inward (base lines)                   -> y0 = -0.1834
 #     its plate edge is 0.7 cm from the inner edge; channel between the rail
 #     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
-#   rail zero: arm base RIGHT side 14 cm from the right table edge -> base centre
-#     x0 = 0.4045 (the mavis mesh's zero end then overhangs the table end by 4.5 cm;
-#     the real track's overhang is unverified)
+#   rail zero end FLUSH with the table's right edge (user) -> base centre x0 = 0.3599
+#     (mavis mesh: 0.2476 m from the base centre to the zero end); the carriage's
+#     right edge is then 15.0 cm from the right edge (user: 'arm ~14 cm'),
+#     the base cylinder 18.5 cm. Rail left end at x = -0.4851 (12.2 cm
+#     from the left edge, mesh length 1.0926 m — unverified).
 # Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
-#   the RIGHT table edge, in the channel between the rails beside the gripper arm's
-#   carriage. Measured depth from the outer edge ~27.5 cm (near face). With the mavis
-#   mesh a 16 cm deep block from 27.5 would overlap the gripper rail body (inner edge
-#   at 42.1 cm) by 1.4 cm and its carriage (protrudes 1.8 cm) by 3.2 cm, so here it
-#   is placed 0.5 cm clear of the carriage sweep: depth 23.8..39.8 cm
-#   (y in [-0.0884, 0.0716]). In the lab it sits against the gripper rail; the
-#   real rail/carriage is presumably narrower than the mesh — calibrate (phase-09).
-#   carriage <-> obstacle is a structural allowed pair (the carriage only slides in X).
-# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' hovering above the obstacle,
-#   tool down, TCP 14.5 cm over its top (the obstacle sits in the arm's near-base dead
-#   zone; guardrail scenario 'mavis_v2_obstacle_descend' drives it down onto the top); 'view' turned round
+#   the LEFT table edge (the empty end), in the channel between the rails; near face
+#   27.5 cm in from the outer edge as measured -> y in [-0.1250, 0.0350]. Its inner
+#   face is 1.4 cm past the mesh gripper-rail inner edge and the mesh rail
+#   reaches 3.8 cm into the obstacle's x-span: a static corner overlap (rail
+#   mesh length/width vs the real track — phase-09 calibration; no effect on the twin
+#   or physics, both are welded to the world).
+# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' elbow-up ready pose in the
+#   channel, tool down, TCP 4.5 cm below the obstacle top (guardrail scenario
+#   'mavis_v2_rail_sweep' drives it -X along the channel into the obstacle's face); 'view' turned round
 #   (j1 ~ pi), camera 1.4 m up over the channel left of the gripper, looking down-right.
 id: mavis_v2
 description: MAVIS v2 cell - camera arm on the outer rail + gripper arm 39.5 cm inward, 1.215 x 0.62 table,
-  obstacle at the right end of the channel
+  obstacle at the left end of the channel
 suitable_for: [sim, twin]
 arms:
 - id: view
   model: xarm7_on_rail
-  base_pos: [0.4045, 0.2116, 0.842188]
+  base_pos: [0.3599, 0.2116, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: none
   wrist_cam: true
 - id: grip
   model: xarm7_on_rail
-  base_pos: [0.4045, -0.1834, 0.842188]
+  base_pos: [0.3599, -0.1834, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true
@@ -68,15 +68,14 @@ environment:
 - name: obstacle
   type: box
   size: [0.08, 0.08, 0.12]
-  pos: [0.5275, -0.0084, 0.855]
+  pos: [-0.5275, -0.045, 0.855]
   rgba: [0.75, 0.22, 0.2, 1.0]
 allowed_pairs:
 - [view_rail_platform, table]
 - [grip_rail_platform, table]
-- [grip_rail_platform, obstacle]
 keyframe:
   view:
-    q: [0.0, 2.9316, -0.761, -0.6625, 1.231, -0.0742, 1.863, -0.2964]
+    q: [0.0, 3.0012, -1.3513, 0.0579, 0.7548, -0.5641, 1.7282, -0.3698]
   grip:
-    q: [0.0, -0.7732, -0.8729, 0.0353, 0.6226, 0.0271, 1.4954, 0.025]
+    q: [0.0, 0.9644, -0.3909, 0.0779, 0.353, 0.044, 0.7442, 0.0528]
     gripper: 1.0
