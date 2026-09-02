@@ -11,7 +11,8 @@ Run:  uv run python -m apollo_xarm7_sim.tools.guardrail_check --all
                                                     [--no-ik-avoidance]
 
 Scenarios: ``env_table_descend`` / ``env_pedestal_sweep`` (arm↔environment),
-``cross_arm_head_on`` / ``cross_arm_rail_converge`` (arm↔arm). Assertion
+``cross_arm_head_on`` / ``cross_arm_rail_converge`` (arm↔arm),
+``mavis_v2_box_descend`` (the lab cell's gripper arm onto its obstacle). Assertion
 contract A1–A5 in ``_assert_*`` below. Ground truth = the *physics* model
 with zero inflation: any sim contact ``dist <= 0`` between geoms matching
 ``target_pair_prefixes`` is a real-contact failure.
@@ -224,6 +225,19 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             graze_twist=_tw(0.0, 0.10, 0.02, 0.0, 0.0, 0.0),
             graze_ticks=1100,
         ),
+        # Lab cell (mavis_v2): the gripper arm's ready pose hovers ~0.1 m above
+        # the 0.16 m obstacle box at the back edge; drive it down (with a
+        # slight -X drift so the gripper is squarely over the box top).
+        # Graze: sweep -X at constant height, clearing the box top by ~0.1 m.
+        GuardrailScenario(
+            scenario_id="mavis_v2_box_descend",
+            scene_id="mavis_v2",
+            driven_arm="grip",
+            twist=_tw(-0.04, 0.0, -0.12, 0.0, 0.0, 0.0),
+            target_pair_prefixes=("grip_", "obstacle"),
+            graze_twist=_tw(-0.10, 0.0, 0.0, 0.0, 0.0, 0.0),
+            graze_ticks=300,
+        ),
     )
 }
 
@@ -257,11 +271,18 @@ def _build_real_robot_scene(scene_id: str):
     return BuiltScene(scene.meta, spec, model, spec.to_xml(), Addressing(model, scene.meta))
 
 
-def _sim_config(scene_id: str, arm_ids: tuple[str, ...]) -> WorkcellConfig:
+def _sim_config(scene) -> WorkcellConfig:
     return WorkcellConfig(
         kind="sim",
-        sim_scene=scene_id,
-        arms=[ArmConfig(id=a, base_in_world=PoseModel()) for a in arm_ids],
+        sim_scene=scene.meta.id,
+        arms=[
+            ArmConfig(
+                id=a,
+                base_in_world=PoseModel(),
+                gripper="xarm" if scene.addressing[a].has_gripper else "none",
+            )
+            for a in scene.meta.arm_ids
+        ],
         safety=SafetyConfig(
             safety_debug=True, geom_inflation_m=SAFETY_DEBUG_INFLATION_M
         ),
@@ -323,7 +344,7 @@ def run_scenario(
     max_ticks = s.graze_ticks if graze else s.max_ticks
     sim_scene = _build_real_robot_scene(s.scene_id)
     cfg = SafetyConfig(safety_debug=True, geom_inflation_m=SAFETY_DEBUG_INFLATION_M)
-    cell = SimWorkcell(sim_scene, _sim_config(s.scene_id, sim_scene.meta.arm_ids))
+    cell = SimWorkcell(sim_scene, _sim_config(sim_scene))
     twin = DigitalTwin(REGISTRY.build(s.scene_id), inflation_m=cfg.geom_inflation_m)
     ik = MinkIKSolver(
         twin.scene,

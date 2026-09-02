@@ -1,0 +1,83 @@
+# MAVIS v2 lab cell (Apollo Lab, measured 2026-09-02) — digital-twin reference
+# scene for the real hardware AND a sim scenario. Generated from the tape
+# measurements below (see docs/design/03-sim.md §4.3 for the arithmetic);
+# edit the numbers there, not the derived values.
+#
+# World frame: z-up, origin on the FLOOR under the table centre. +X runs
+# along the table's long edge toward the RIGHT end (the end used for the
+# 14.5 cm measurement); +Y runs across the table toward the BACK (obstacle
+# edge); the operator/camera-arm side is -Y.
+#
+# Table: 1.215 x 0.63 x 0.03 m, top surface at z = 0.735 m.
+# Rails: both parallel to X, feet on the table top (arm mounting plane at
+#   z = 0.735 + 0.107188 = 0.842188, mavis rail mesh). Rail zero (q=0)
+#   is at the RIGHT end; travel increases toward -X (base_quat = yaw +90 deg,
+#   both arms face +Y across the table).
+#   front rail (camera-only arm 'view'): outer edge 2 cm from the front edge
+#   back rail (gripper arm 'grip'):      outer edge 42 cm from the front edge
+#   (the user also quoted 39.5 cm between the rails' outer edges; the two
+#   edge measurements give 40 cm — 5 mm apart, calibrate in phase-09)
+#   at rail zero both arms are 14.5 cm from the right table edge, taken
+#   here as the CARRIAGE edge ('carriage'; rail zero x0 = 0.3645). If the
+#   14.5 cm was to the arm base edge use x0 = 0.3995, to the
+#   base centre x0 = 0.4625 (the mavis rail mesh then overhangs
+#   the table end; the mesh's zero-end overhang is unverified).
+# Obstacle: 0.16 x 0.16 x 0.26 m box flush against the back long edge, its
+#   +X face 29.2 cm from the right edge (user first said 13 cm side, then
+#   16 x 16 — 16 used).
+# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' ready pose with the
+#   TCP at (0.365, 0.30, 1.11) tool down (11 cm above the obstacle top —
+#   the guardrail 'mavis_v2_box_descend' scenario drives it down); 'view'
+#   swung 0.5 rad to the side with the D435 1.5 m up, looking down at the
+#   gripper workspace (~(0.325, 0.30, 0.78)). Both rails at ZERO, as in the lab.
+# allowed_pairs: structural closeness by construction — carriages sit 24 mm
+#   above the table, and each carriage passes ~2 mm from the neighbouring
+#   rail's cable-tray plate (the rails are 1.5 cm apart).
+id: mavis_v2
+description: MAVIS v2 cell - camera arm (front) + gripper arm (back) on parallel rails, 1.215 x 0.63 table,
+  box obstacle
+suitable_for: [sim, twin]
+arms:
+- id: view
+  model: xarm7_on_rail
+  base_pos: [0.3645, -0.175, 0.842188]
+  base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
+  gripper: none
+  wrist_cam: true
+- id: grip
+  model: xarm7_on_rail
+  base_pos: [0.3645, 0.0326, 0.842188]
+  base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
+  gripper: xarm
+  wrist_cam: true
+cameras:
+- name: cam_front
+  pos: [0.0, -2.0, 1.9]
+  xyaxes: [1, 0, 0, 0, 0.55, 1]
+  fovy: 45
+- name: cam_top
+  pos: [0.0, 0.0, 2.6]
+  xyaxes: [1, 0, 0, 0, 1, 0]
+  fovy: 42
+environment:
+- name: table
+  type: box
+  size: [0.6075, 0.315, 0.015]
+  pos: [0.0, 0.0, 0.72]
+  rgba: [0.62, 0.48, 0.32, 1.0]
+- name: obstacle
+  type: box
+  size: [0.08, 0.08, 0.13]
+  pos: [0.2355, 0.235, 0.865]
+  rgba: [0.75, 0.22, 0.2, 1.0]
+allowed_pairs:
+- [view_rail_platform, table]
+- [grip_rail_platform, table]
+- [view_rail_platform, grip_rail_base]
+- [grip_rail_platform, view_rail_base]
+keyframe:
+  view:
+    q: [0.0, 0.5, -0.8, 0.0, 1.2, -0.2, 1.6, 0.0]
+  grip:
+    q: [0.0, 0.0, -0.75, 0.0, 0.65, 0.0, 1.4, 0.0]
+    gripper: 1.0

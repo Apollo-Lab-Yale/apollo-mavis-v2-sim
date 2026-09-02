@@ -97,12 +97,25 @@ class SceneDescriptor(BaseModel):
     cameras: tuple[CameraSpec, ...] = ()
     environment: tuple[EnvironmentSpec, ...] = ()
     keyframe: dict[str, KeyframeArm] | None = None  # None -> per-arm menagerie home
+    # Structural collision-pair whitelist authored WITH the scene (11-safety
+    # §6.3 source (a)): label pairs that are permanently inside the inflation
+    # band by construction (e.g. a rail carriage 24 mm above the table it is
+    # bolted to, two rails mounted side by side). Labels are the twin's pair
+    # labels: world geoms by geom name ("table"), arm bodies as
+    # "<arm_id>_<body>" ("grip_rail_platform"). Unknown labels fail the build.
+    allowed_pairs: tuple[tuple[str, str], ...] = ()
 
     @model_validator(mode="after")
     def _cross_field(self) -> SceneDescriptor:
         arm_ids = [a.id for a in self.arms]
         if len(set(arm_ids)) != len(arm_ids):
             raise ValueError(f"arm ids must be unique, got {arm_ids}")
+        for a in arm_ids:
+            if any(o != a and o.startswith(f"{a}_") for o in arm_ids):
+                raise ValueError(f"arm id {a!r} is a prefix of another arm id (labels clash)")
+        for pair in self.allowed_pairs:
+            if len(pair) != 2 or pair[0] == pair[1] or not all(pair):
+                raise ValueError(f"allowed_pairs entries must be two distinct labels, got {pair}")
         names = [c.name for c in self.cameras] + [e.name for e in self.environment]
         if len(set(names)) != len(names):
             raise ValueError(f"camera/environment names must be unique, got {names}")
@@ -141,6 +154,7 @@ class SceneMeta:
     wrist_cams: dict[str, bool]  # per arm id
     cameras: tuple[str, ...]  # named MJCF cameras (post-prefix names)
     suitable_for: frozenset[str]  # {"sim", "twin"}
+    allowed_pairs: tuple[tuple[str, str], ...] = ()  # scene-authored structural pairs
 
 
 __all__ = [

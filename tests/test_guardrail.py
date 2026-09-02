@@ -1,6 +1,6 @@
 """Guardrail CI regression as a pytest (11-safety §5.1) — this IS the safety CI.
 
-Runs the full matrix (4 scenarios x {gate-only main, IK-on main, IK-on
+Runs the full matrix (5 scenarios x {gate-only main, IK-on main, IK-on
 graze}) through the script's own ``main`` so the CI entry point and the test
 exercise identical code. Budget: < 30 s virtual-tick wall time.
 """
@@ -18,6 +18,7 @@ def test_scenario_table_is_complete():
         "env_pedestal_sweep",
         "cross_arm_head_on",
         "cross_arm_rail_converge",
+        "mavis_v2_box_descend",
     }
     for s in SCENARIOS.values():
         assert s.twist.shape == (6,)
@@ -32,4 +33,4 @@ def test_all_scenarios_pass_within_budget(capsys):
     out = capsys.readouterr().out
     assert rc == 0, f"guardrail failed:\n{out}"
     assert wall < 30.0, f"guardrail took {wall:.1f} s (budget 30 s)"
-    assert out.count("PASS") >= 12  # 4 scenarios x 3 runs + summary
+    assert out.count("PASS") >= 15  # 5 scenarios x 3 runs + summary

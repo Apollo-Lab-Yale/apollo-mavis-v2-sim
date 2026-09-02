@@ -13,7 +13,7 @@ from apollo_xarm7_sim import REGISTRY, SceneArmMismatchError, SceneNotFoundError
 from apollo_xarm7_sim.scenes.builder import HOME_Q, RAIL_HOME_M
 
 ALL_SCENES = ["single_fixed_tabletop", "single_rail", "dual_rail_tabletop",
-              "triple_rail_row", "dual_mixed"]
+              "triple_rail_row", "dual_mixed", "mavis_v2"]
 
 
 @pytest.mark.parametrize("scene_id", ALL_SCENES)
@@ -21,15 +21,18 @@ def test_every_scene_builds(scene_id):
     built = REGISTRY.build(scene_id)
     meta = built.meta
     model = built.model
-    # expected sizes: rail arm 14 qpos / 9 ctrl, fixed arm 13 / 8 (with gripper)
-    nq = sum(14 if meta.rail[a] else 13 for a in meta.arm_ids)
-    nu = sum(9 if meta.rail[a] else 8 for a in meta.arm_ids)
+    # expected sizes: rail arm 8 qpos / 8 ctrl, fixed arm 7 / 7, plus 6 qpos / 1 ctrl
+    # for an xArm gripper (mavis_v2's camera-only arm has none)
+    grip = {a: built.addressing[a].has_gripper for a in meta.arm_ids}
+    nq = sum((8 if meta.rail[a] else 7) + (6 if grip[a] else 0) for a in meta.arm_ids)
+    nu = sum((8 if meta.rail[a] else 7) + (1 if grip[a] else 0) for a in meta.arm_ids)
     assert model.nq == nq and model.nu == nu
     # prefixed actuator names, e.g. <arm_id>_act1 ... <arm_id>_gripper
     for arm_id in meta.arm_ids:
         for i in range(1, 8):
             assert model.actuator(f"{arm_id}_act{i}").id >= 0
-        assert model.actuator(f"{arm_id}_gripper").id >= 0
+        if grip[arm_id]:
+            assert model.actuator(f"{arm_id}_gripper").id >= 0
         if meta.rail[arm_id]:
             assert model.actuator(f"{arm_id}_rail").id >= 0
         assert model.site(f"{arm_id}_link_tcp").id >= 0
@@ -144,3 +147,48 @@ def test_wrist_cam_false_removes_camera_and_mount():
     assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "fix0_d435_mount") < 0
     assert model.camera("rail0_wrist_cam").id >= 0
     assert built.addressing["fix0"].wrist_cam_id is None
+
+
+def test_allowed_pairs_unknown_label_fails_the_build():
+    from apollo_xarm7_sim import SceneCompileError, SceneDescriptor
+    from apollo_xarm7_sim.scenes.builder import build_scene
+
+    desc = SceneDescriptor(
+        id="_badpair",
+        description="typo in a scene-authored structural pair",
+        arms=({"id": "a0", "model": "xarm7_on_rail", "base_pos": (0.0, -0.325, 0.107188)},),
+        allowed_pairs=(("a0_rail_platform", "tabel"),),
+    )
+    with pytest.raises(SceneCompileError, match="tabel"):
+        build_scene(desc)
+
+
+def test_allowed_pairs_of_dropped_arms_are_skipped_by_arm_subset():
+    from apollo_xarm7_sim import SceneDescriptor
+    from apollo_xarm7_sim.scenes.builder import build_scene
+
+    desc = SceneDescriptor(
+        id="_subset",
+        description="pair naming an arm that the override drops",
+        arms=(
+            {"id": "a0", "model": "xarm7_on_rail", "base_pos": (0.0, -0.325, 0.107188)},
+            {"id": "b0", "model": "xarm7_on_rail", "base_pos": (1.0, -0.325, 0.107188)},
+        ),
+        allowed_pairs=(("a0_rail_platform", "b0_rail_base"),),
+    )
+    built = build_scene(desc, SceneOverrides(arm_ids=("a0",)))
+    assert built.meta.arm_ids == ("a0",)
+
+
+def test_arm_id_prefix_of_another_arm_is_rejected():
+    from apollo_xarm7_sim import SceneDescriptor
+
+    with pytest.raises(ValueError, match="prefix"):
+        SceneDescriptor(
+            id="_prefix",
+            description="cam / cam2 would make pair labels ambiguous",
+            arms=(
+                {"id": "cam", "model": "xarm7_on_rail"},
+                {"id": "cam_2", "model": "xarm7_on_rail", "base_pos": (1.0, 0.0, 0.107188)},
+            ),
+        )

@@ -59,6 +59,7 @@ def scene_meta(desc: SceneDescriptor, overrides: SceneOverrides | None = None) -
         wrist_cams={a.id: a.wrist_cam for a in arms},
         cameras=cameras,
         suitable_for=frozenset(desc.suitable_for),
+        allowed_pairs=tuple((str(a), str(b)) for a, b in desc.allowed_pairs),
     )
 
 
@@ -92,7 +93,31 @@ def build_scene(desc: SceneDescriptor, overrides: SceneOverrides | None = None) 
         raise SceneCompileError(f"scene {desc.id!r} failed to compile: {e}") from e
     if overrides is not None and overrides.geom_inflation_m is not None:
         _apply_inflation(model, overrides.geom_inflation_m)
+    _validate_allowed_pairs(model, desc, arms)
     return BuiltScene(meta, spec, model, spec.to_xml(), Addressing(model, meta))
+
+
+def _validate_allowed_pairs(
+    model: mujoco.MjModel, desc: SceneDescriptor, arms: tuple[ArmSpec, ...]
+) -> None:
+    """Every scene-authored allowed-pair label must resolve to a pair label
+    of the built model (world geom name or ``<arm_id>_<body>``); labels of
+    arms dropped by an ``arm_ids`` override are skipped, typos fail loudly."""
+    known = {model.body(b).name for b in range(1, model.nbody)}
+    for g in range(model.ngeom):
+        if int(model.geom_bodyid[g]) == 0:
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g)
+            if name:
+                known.add(name)
+    dropped = {a.id for a in desc.arms} - {a.id for a in arms}
+    for pair in desc.allowed_pairs:
+        for label in pair:
+            if label in known or any(label.startswith(f"{d}_") for d in dropped):
+                continue
+            raise SceneCompileError(
+                f"scene {desc.id!r}: allowed_pairs label {label!r} matches no world geom "
+                "or arm body of the built model"
+            )
 
 
 def _apply_options(spec: mujoco.MjSpec, desc: SceneDescriptor) -> None:
@@ -147,6 +172,14 @@ def _customize_child(child: mujoco.MjSpec, arm: ArmSpec) -> None:
         # is the link7 flange (phase-02 convention; see report).
         child.body("link7").add_site(name="link_tcp", pos=[0.0, 0.0, 0.0])
         _shrink_child_keyframes(child, arm)
+        if arm.wrist_cam:
+            # Camera-only arm: the D435 + stand IS the tool. Its mesh is
+            # visual-only in the child (it overlaps the gripper hull when
+            # both are mounted); with no gripper it must be collidable so
+            # the twin protects the real camera body (~8 cm past the flange).
+            cam_geom = child.geom("d435")
+            cam_geom.contype = 1
+            cam_geom.conaffinity = 1
         modified = True
     if modified:
         # Editing leaves keyframes "pending"; compiling the child finalizes

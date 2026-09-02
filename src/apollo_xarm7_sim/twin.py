@@ -180,7 +180,13 @@ class DigitalTwin:
         self.addr = scene.addressing
         self.inflation_m = float(inflation_m)
         apply_inflation(self.model, self.inflation_m)
-        extra = list(allowed_pairs_extra) + self._structural_extra()
+        # Sources (11-safety §6.3): (a) scene-authored structural pairs,
+        # (b) config allowed_pairs_extra, plus the built-in rail-vs-plane rule.
+        extra = (
+            list(scene.meta.allowed_pairs)
+            + list(allowed_pairs_extra)
+            + self._structural_extra()
+        )
         self.allowed = AllowedPairs(self.model, extra=extra)
         self.monitored_pairs = build_monitored_pairs(self.model, self.addr, self.allowed)
         self._geoms_of_label = self._build_label_index()

@@ -66,7 +66,7 @@ def test_audit_rejects_bad_scene():
 
 @pytest.mark.parametrize(
     "scene_id",
-    ["single_rail", "dual_rail_tabletop", "guardrail_face", "guardrail_rail"],
+    ["single_rail", "dual_rail_tabletop", "guardrail_face", "guardrail_rail", "mavis_v2"],
 )
 def test_registry_scenes_audit_clean_at_debug_delta(scene_id):
     DigitalTwin(REGISTRY.build(scene_id), inflation_m=0.025)  # no TwinAuditError
