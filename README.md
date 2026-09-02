@@ -49,7 +49,7 @@ adding or editing a scene run `uv run python -m apollo_xarm7_sim.tools.gen_asset
 | `single_rail`, `single_fixed_tabletop` | 1 | dev defaults (runtime `configs/sim.yaml`) |
 | `dual_rail_tabletop`, `dual_mixed`, `triple_rail_row` | 2–3 | composition coverage |
 | `guardrail_env`, `guardrail_face`, `guardrail_rail` | 1–2 | safety CI cells |
-| `mavis_v2` | 2 | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` in front, gripper arm `grip` behind, parallel rails on a 1.215 × 0.63 m table, 0.16 × 0.16 × 0.26 m obstacle — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
+| `mavis_v2` | 2 | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.5 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the right end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
 
 `gripper: none` + `wrist_cam: true` composes a camera-only arm (TCP at the
 flange, D435 + stand collidable). `allowed_pairs:` declares structural
@@ -69,7 +69,7 @@ Phase-03 benchmarks, 2026-09-01 (`bench_ik.py` / `bench_twin.py`):
 | Twin check, 3 arms, home | 14 µs/tick (0 contacts — structural pairs excluded) | ≤ 1 ms |
 | Twin check, 3 arms, adversarial | 744 µs/tick (66 contacts) | ≤ 1 ms |
 | `mj_geomDistance` arm0×arm1 sweep | 360 pairs, 0.15 ms (distmax 0.2) | ~0.29 ms ref |
-| Guardrail CI (`--all`, 15 runs incl. `mavis_v2_box_descend`) | see `tests/test_guardrail.py` | < 30 s |
+| Guardrail CI (`--all`, 15 runs incl. `mavis_v2_obstacle_descend`) | see `tests/test_guardrail.py` | < 30 s |
 
 ## Fidelity notes
 

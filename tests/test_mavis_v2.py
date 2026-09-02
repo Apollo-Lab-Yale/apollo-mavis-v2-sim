@@ -1,7 +1,9 @@
-"""mavis_v2 — the Apollo lab cell (measured 2026-09-02), digital-twin reference.
+"""mavis_v2 — the Apollo lab cell (tape-measured 2026-09-02), digital-twin reference.
 
-Pins the scene to the tape measurements it was generated from (03-sim §4.3)
-so a stray edit of the YAML cannot silently move the twin's obstacles.
+Frame (user's definitions): +Y = OUTER edge (the long edge the arms face at rail
+zero; camera rail side); facing the outer edge, +X is to the RIGHT (arms at rail
+zero + obstacle). Pins the scene to the measurements it was generated from
+(03-sim §4.3) so a stray edit of the YAML cannot silently move the twin's obstacles.
 """
 
 from __future__ import annotations
@@ -15,11 +17,12 @@ from apollo_xarm7_sim import REGISTRY, DigitalTwin
 from apollo_xarm7_sim.assets import asset_path
 from apollo_xarm7_sim.twin import geom_labels
 
-TABLE_TOP_Z, HALF_L, HALF_W = 0.735, 0.6075, 0.315
+TABLE_TOP_Z, HALF_L, HALF_W = 0.735, 0.6075, 0.31
 RAIL_Z = 0.107188  # rail feet -> arm mounting plane (mavis rail mesh)
-RAIL_SPACING = 0.395  # between the two rails (base lines)
-RAIL_ACROSS = (-0.120, 0.0724)  # rail mesh extent across the travel axis (rail frame x)
-CARRIAGE_ACROSS = (-0.080, 0.090)  # carriage extent across the travel axis
+RAIL_SPACING = 0.395  # between the two rail bases (identical rails, same orientation)
+RAIL_ACROSS = (-0.120, 0.0724)  # rail mesh across the travel axis (rail frame x; plate on -x)
+CARRIAGE_ACROSS = (-0.080, 0.090)
+BASE_R = 0.063
 
 
 @pytest.fixture(scope="module")
@@ -41,30 +44,20 @@ def test_meta_and_composition(built):
     assert built.model.nq == 8 + 14 and built.model.nu == 8 + 9
 
 
-def test_table_and_obstacle_match_measurements(built):
-    model = built.model
-    t, o = model.geom("table"), model.geom("obstacle")
-    np.testing.assert_allclose(t.size, [HALF_L, HALF_W, 0.015])
+def test_table_matches_measurements(built):
+    t = built.model.geom("table")
+    np.testing.assert_allclose(t.size, [HALF_L, HALF_W, 0.015])  # 1.215 x 0.62 x 0.03
     np.testing.assert_allclose(t.pos[2] + t.size[2], TABLE_TOP_Z)
-    np.testing.assert_allclose(o.size, [0.08, 0.08, 0.13])
-    np.testing.assert_allclose(HALF_L - (o.pos[0] + o.size[0]), 0.292)  # +X face 29.2 cm from right
-    np.testing.assert_allclose(o.pos[2] - o.size[2], TABLE_TOP_Z)  # standing on the table
-    # in the channel between the rails, centred in its free width
-    # (front carriage sweep .. back rail body)
-    view_y, grip_y = model.body("view_rail_base").pos[1], model.body("grip_rail_base").pos[1]
-    free_lo, free_hi = view_y + CARRIAGE_ACROSS[1], grip_y + RAIL_ACROSS[0]
-    assert free_lo < o.pos[1] - o.size[1] and o.pos[1] + o.size[1] < free_hi
-    np.testing.assert_allclose(o.pos[1], (free_lo + free_hi) / 2, atol=1e-3)
-    grip_x = model.body("grip_rail_base").pos[0]
-    assert o.pos[0] + o.size[0] < grip_x - 0.098  # left of the carriages at rail zero
 
 
-def test_rails_run_along_x_with_zero_at_the_right_end(built):
+def test_rails_same_orientation_zero_at_the_right_end(built):
     model, data = built.model, mujoco.MjData(built.model)
     for arm in ("view", "grip"):
         rail_base = model.body(f"{arm}_rail_base")
         np.testing.assert_allclose(rail_base.pos[2], TABLE_TOP_Z + RAIL_Z)
-        for q, dx in ((0.0, 0.0), (0.65, -0.65)):  # travel increases toward -X
+        # arm base +X -> world +Y (outer edge); travel increases toward -X
+        np.testing.assert_allclose(rail_base.quat, [0.70710678, 0, 0, 0.70710678], atol=1e-6)
+        for q, dx in ((0.0, 0.0), (0.65, -0.65)):
             mujoco.mj_resetDataKeyframe(model, data, 0)
             data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] = q
             mujoco.mj_kinematics(model, data)
@@ -72,20 +65,31 @@ def test_rails_run_along_x_with_zero_at_the_right_end(built):
             np.testing.assert_allclose(lb[:2], rail_base.pos[:2] + [dx, 0.0], atol=1e-6)
     view, grip = model.body("view_rail_base").pos, model.body("grip_rail_base").pos
     assert view[0] == grip[0]  # both arms share the rail-zero X
-    assert view[1] < grip[1]  # camera arm in front (-Y), gripper arm behind
-    # rail zero: arm base centre 14.5 cm from the right table edge (literal reading)
-    np.testing.assert_allclose(view[0], HALF_L - 0.145, atol=1e-3)
+    assert view[1] > grip[1]  # camera arm on the outer rail, gripper arm inward
+    # rail zero: arm base RIGHT side 14 cm from the right table edge
+    np.testing.assert_allclose(view[0] + BASE_R, HALF_L - 0.14, atol=1e-3)
 
 
-def test_rail_edge_offsets_from_the_front_edge(desc):
+def test_rail_offsets_from_the_outer_edge(desc):
     arms = {a["id"]: a for a in desc["arms"]}
-    # yaw +90: rail-frame x -> world y, so the mesh spans [y0-0.120, y0+0.0724]
     view_y, grip_y = arms["view"]["base_pos"][1], arms["grip"]["base_pos"][1]
-    np.testing.assert_allclose(view_y + RAIL_ACROSS[0], -HALF_W + 0.02, atol=1e-3)  # 2 cm
-    np.testing.assert_allclose(grip_y - view_y, RAIL_SPACING, atol=1e-3)  # rails 39.5 cm apart
-    assert grip_y + RAIL_ACROSS[1] < HALF_W  # back rail stays on the table
-    for a in arms.values():  # both arms face +Y (yaw +90 deg about Z), wxyz
-        np.testing.assert_allclose(a["base_quat"], [0.70710678, 0, 0, 0.70710678], atol=1e-6)
+    np.testing.assert_allclose(HALF_W - (view_y + RAIL_ACROSS[1]), 0.026, atol=1e-3)  # 2.6 cm
+    np.testing.assert_allclose(view_y - grip_y, RAIL_SPACING, atol=1e-3)  # 39.5 cm apart
+    assert grip_y + RAIL_ACROSS[0] > -HALF_W  # plate edge stays on the table (0.66 cm)
+
+
+def test_obstacle_at_the_right_end_of_the_channel(built):
+    model = built.model
+    o = model.geom("obstacle")
+    np.testing.assert_allclose(o.size, [0.08, 0.08, 0.12])  # 16 x 16 x 24 cm
+    np.testing.assert_allclose(o.pos[0] + o.size[0], HALF_L)  # flush against the right edge
+    np.testing.assert_allclose(o.pos[2] - o.size[2], TABLE_TOP_Z)  # standing on the table
+    view_y, grip_y = model.body("view_rail_base").pos[1], model.body("grip_rail_base").pos[1]
+    inner, outer = o.pos[1] - o.size[1], o.pos[1] + o.size[1]
+    assert outer < view_y + RAIL_ACROSS[0]  # clear of the camera rail's plate
+    assert inner > grip_y + CARRIAGE_ACROSS[1]  # clear of the gripper carriage sweep
+    # measured depth ~27.5 cm from the outer edge; modelled 23.8 (mesh rail/carriage width)
+    assert 0.22 <= HALF_W - outer <= 0.28
 
 
 def test_camera_only_arm_tool_is_collidable(built):
@@ -104,13 +108,14 @@ def test_twin_audit_clean_and_structural_pairs_whitelisted(built, delta):
     labels = geom_labels(twin.model)
     monitored = {frozenset((labels[g1], labels[g2])) for g1, g2 in twin.monitored_pairs}
     assert frozenset(("view_rail_platform", "table")) not in monitored
+    assert frozenset(("grip_rail_platform", "obstacle")) not in monitored  # slides past it
     assert frozenset(("grip_link5", "obstacle")) in monitored  # real hazards stay monitored
-    assert frozenset(("view_rail_platform", "obstacle")) in monitored  # carriage passes the box
+    assert frozenset(("grip_link_base", "obstacle")) in monitored
     assert frozenset(("view_d435_mount", "grip_link5")) in monitored
 
 
-def test_keyframe_rails_at_zero_and_gripper_ready_above_the_obstacle(built):
-    """Premise of the guardrail scenario ``mavis_v2_box_descend``."""
+def test_keyframe_rails_at_zero_and_gripper_hovering_over_the_obstacle(built):
+    """Premise of the guardrail scenario ``mavis_v2_obstacle_descend`` (-z onto the top)."""
     model, data = built.model, mujoco.MjData(built.model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
@@ -119,6 +124,6 @@ def test_keyframe_rails_at_zero_and_gripper_ready_above_the_obstacle(built):
     sid = model.site("grip_link_tcp").id
     tcp, tool_z = data.site_xpos[sid], data.site_xmat[sid].reshape(3, 3)[:, 2]
     o = model.geom("obstacle")
-    assert 0.08 <= tcp[2] - (o.pos[2] + o.size[2]) <= 0.15  # ~0.1 m above the box top
-    assert abs(tcp[0] - o.pos[0]) <= 0.02 and abs(tcp[1] - o.pos[1]) <= 0.02  # over the box centre
+    assert abs(tcp[0] - o.pos[0]) < o.size[0] and abs(tcp[1] - o.pos[1]) < o.size[1]  # over it
+    assert 0.10 <= tcp[2] - (o.pos[2] + o.size[2]) <= 0.20  # ~0.145 m above the top
     assert tool_z[2] < -0.98  # tool pointing straight down

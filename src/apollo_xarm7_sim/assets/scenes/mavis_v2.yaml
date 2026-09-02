@@ -1,50 +1,52 @@
 # MAVIS v2 lab cell (Apollo Lab, tape-measured 2026-09-02) — digital-twin reference
 # scene for the real hardware AND a sim scenario. Generated from the measurements
-# below (docs/design/03-sim.md §4.3 has the arithmetic); edit the numbers there,
-# not the derived values.
+# below (docs/design/03-sim.md §4.3 has the arithmetic); edit the numbers there.
 #
-# World frame: z-up, origin on the FLOOR under the table centre. The operator
-# stands at the FRONT (-Y), where the camera-only arm's rail is; +Y is toward
-# the BACK (gripper arm's rail); +X is toward the RIGHT end (the end used for
-# the 14.5 cm measurement).
+# World frame (the user's definitions): z-up, origin on the FLOOR under the table
+# centre. +Y points to the OUTER edge = the long edge the arms' end effectors face
+# at rail zero (the camera rail is next to it). Standing on the inner side and
+# FACING the outer edge, +X is to the RIGHT: the end where both arms sit at rail
+# zero and where the obstacle is.
 #
-# Table: 1.215 x 0.63 x 0.03 m, top surface at z = 0.735 m.
+# Table: 1.215 x 0.62 x 0.03 m, top surface at z = 0.735 m.
 # Rails: two identical rails parallel to X, feet on the table top (arm mounting
-#   plane at z = 0.735 + 0.107188 = 0.842188, mavis rail mesh), mounted the
-#   same way: zero (q=0) at the RIGHT end, travel toward -X, base +X toward +Y
-#   (base_quat = yaw +90 deg). Rail-to-rail spacing 39.5 cm (base lines).
-#   front rail ('view', camera-only): outer edge 2 cm from the front edge  -> y0 = -0.1750
-#   back rail ('grip', gripper + wrist cam): y0 = 0.2200; its far edge is
-#   2.3 cm from the back edge (the "42 cm to the rail" reading is 5 mm off)
-#   channel between the rails: y in [-0.1026, 0.1000] (20.3 cm wide, mavis mesh width 19.2 cm)
-#   at rail zero both arms are 14.5 cm from the right edge, read literally to the
-#   BASE CENTRE (x0 = 0.4625); if it was to the base edge use 0.3995, to the
-#   carriage edge 0.3645. With the mavis mesh the rail's zero end then
-#   overhangs the right table end by 10.3 cm (the mesh overhang is unverified).
-# Obstacle: 0.16 x 0.16 x 0.26 m box IN the channel between the rails, centred in
-#   the channel's free width (the front carriage protrudes 1.8 cm into it), to the
-#   LEFT of the arms: +X face 29.2 cm from the right edge.
-#   (The spoken "13 cm side" was superseded by 16 x 16; "flush against the table
-#   edge" cannot hold inside the channel — confirm whether it touches a rail.)
-# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' turned round (j1 ~ pi)
-#   with the TCP 11 cm above the box top, tool down (guardrail scenario
-#   'mavis_v2_box_descend' drives it down); 'view' camera 1.3 m up looking at
-#   the box. Both rails at ZERO, as in the lab.
-# allowed_pairs: carriages sit 24 mm above the table they are bolted to.
+#   plane z = 0.735 + 0.107188 = 0.842188, mavis rail mesh), mounted the SAME way:
+#   arm base +X toward the outer edge (+Y), thin cable-tray plate toward the table
+#   interior (-Y), zero (q=0) at the right end, travel toward -X (base_quat yaw +90).
+#   camera-only arm 'view': rail outer edge 2.6 cm from the outer edge -> y0 = 0.2116
+#   gripper arm 'grip': 39.5 cm inward (base lines)                   -> y0 = -0.1834
+#     its plate edge is 0.7 cm from the inner edge; channel between the rail
+#     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
+#   rail zero: arm base RIGHT side 14 cm from the right table edge -> base centre
+#     x0 = 0.4045 (the mavis mesh's zero end then overhangs the table end by 4.5 cm;
+#     the real track's overhang is unverified)
+# Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
+#   the RIGHT table edge, in the channel between the rails beside the gripper arm's
+#   carriage. Measured depth from the outer edge ~27.5 cm (near face). With the mavis
+#   mesh a 16 cm deep block from 27.5 would overlap the gripper rail body (inner edge
+#   at 42.1 cm) by 1.4 cm and its carriage (protrudes 1.8 cm) by 3.2 cm, so here it
+#   is placed 0.5 cm clear of the carriage sweep: depth 23.8..39.8 cm
+#   (y in [-0.0884, 0.0716]). In the lab it sits against the gripper rail; the
+#   real rail/carriage is presumably narrower than the mesh — calibrate (phase-09).
+#   carriage <-> obstacle is a structural allowed pair (the carriage only slides in X).
+# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' hovering above the obstacle,
+#   tool down, TCP 14.5 cm over its top (the obstacle sits in the arm's near-base dead
+#   zone; guardrail scenario 'mavis_v2_obstacle_descend' drives it down onto the top); 'view' turned round
+#   (j1 ~ pi), camera 1.4 m up over the channel left of the gripper, looking down-right.
 id: mavis_v2
-description: MAVIS v2 cell - camera arm (front rail) + gripper arm (back rail) 39.5 cm apart on a 1.215
-  x 0.63 table, box obstacle between them
+description: MAVIS v2 cell - camera arm on the outer rail + gripper arm 39.5 cm inward, 1.215 x 0.62 table,
+  obstacle at the right end of the channel
 suitable_for: [sim, twin]
 arms:
 - id: view
   model: xarm7_on_rail
-  base_pos: [0.4625, -0.175, 0.842188]
+  base_pos: [0.4045, 0.2116, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: none
   wrist_cam: true
 - id: grip
   model: xarm7_on_rail
-  base_pos: [0.4625, 0.22, 0.842188]
+  base_pos: [0.4045, -0.1834, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true
@@ -60,20 +62,21 @@ cameras:
 environment:
 - name: table
   type: box
-  size: [0.6075, 0.315, 0.015]
+  size: [0.6075, 0.31, 0.015]
   pos: [0.0, 0.0, 0.72]
   rgba: [0.62, 0.48, 0.32, 1.0]
 - name: obstacle
   type: box
-  size: [0.08, 0.08, 0.13]
-  pos: [0.2355, 0.0075, 0.865]
+  size: [0.08, 0.08, 0.12]
+  pos: [0.5275, -0.0084, 0.855]
   rgba: [0.75, 0.22, 0.2, 1.0]
 allowed_pairs:
 - [view_rail_platform, table]
 - [grip_rail_platform, table]
+- [grip_rail_platform, obstacle]
 keyframe:
   view:
-    q: [0.0, -0.0666, -1.2215, -0.2794, 0.808, 0.3754, 1.9055, 0.1838]
+    q: [0.0, 2.9316, -0.761, -0.6625, 1.231, -0.0742, 1.863, -0.2964]
   grip:
-    q: [0.0, 2.8614, -0.6418, -0.4125, 0.7529, -0.2482, 1.3601, -0.2519]
+    q: [0.0, -0.7732, -0.8729, 0.0353, 0.6226, 0.0271, 1.4954, 0.025]
     gripper: 1.0
