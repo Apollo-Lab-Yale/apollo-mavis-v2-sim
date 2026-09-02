@@ -226,14 +226,14 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             graze_ticks=1100,
         ),
         # Lab cell (mavis_v2): the gripper arm's ready pose hovers ~0.1 m above
-        # the 0.16 m obstacle box at the back edge; drive it down (with a
-        # slight -X drift so the gripper is squarely over the box top).
-        # Graze: sweep -X at constant height, clearing the box top by ~0.1 m.
+        # the 0.16 m obstacle box in the channel between the rails; drive it
+        # straight down. Graze: sweep -X at constant height, clearing the box
+        # top by ~0.1 m.
         GuardrailScenario(
             scenario_id="mavis_v2_box_descend",
             scene_id="mavis_v2",
             driven_arm="grip",
-            twist=_tw(-0.04, 0.0, -0.12, 0.0, 0.0, 0.0),
+            twist=_tw(0.0, 0.0, -0.12, 0.0, 0.0, 0.0),
             target_pair_prefixes=("grip_", "obstacle"),
             graze_twist=_tw(-0.10, 0.0, 0.0, 0.0, 0.0, 0.0),
             graze_ticks=300,
