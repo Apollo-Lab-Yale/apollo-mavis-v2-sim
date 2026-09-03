@@ -33,13 +33,15 @@
 #   channel, tool down, TCP 4.5 cm below the obstacle top (guardrail scenario
 #   'mavis_v2_rail_sweep' drives it -X along the channel into the obstacle's face); 'view' turned round
 #   (j1 ~ pi), camera 1.4 m up over the channel left of the gripper, looking down-right.
-# Cameras / view (operator convention): the operator stands at the OUTER edge (+Y)
-#   facing -Y, i.e. facing the arms, camera arm nearest. Every overview is taken
-#   from that side: cam_front sits at +Y looking -Y and down (image right = -X),
-#   cam_top looks straight down with image up = -Y (outer edge at the bottom of the
-#   image), and `view` sets the MuJoCo free camera (runtime "sim" stream) to
-#   azimuth -90 = at +Y looking -Y. The free camera renders the model statistic
-#   centre; the scene cameras are pinned by tests/test_mavis_v2.py.
+# Cameras / view (operator convention): every overview is framed so the red
+#   obstacle (the -X / empty end) is on the LEFT of the image, matching what the
+#   operator sees in the real cell. All three look from the -Y side toward +Y:
+#   cam_front sits at -Y looking +Y and down (image right = +X), cam_top looks
+#   straight down with image up = +Y (image right = +X), and `view` sets the
+#   MuJoCo free camera (runtime "sim" stream) to azimuth +90 = at -Y looking +Y.
+#   NOTE: from this side the gripper arm (-Y) is nearest; the camera-only arm
+#   (+Y) is far. The free camera renders the model statistic centre; the scene
+#   cameras are pinned by tests/test_mavis_v2.py.
 id: mavis_v2
 description: MAVIS v2 cell - camera arm on the outer rail + gripper arm 39.5 cm inward, 1.215 x 0.62 table,
   obstacle at the left end of the channel
@@ -57,15 +59,15 @@ arms:
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true
-view: {azimuth: -90.0, elevation: -30.0}
+view: {azimuth: 90.0, elevation: -30.0}
 cameras:
 - name: cam_front
-  pos: [0.0, 2.0, 1.9]
-  xyaxes: [-1, 0, 0, 0, -0.55, 1]
+  pos: [0.0, -2.0, 1.9]
+  xyaxes: [1, 0, 0, 0, 0.55, 1]
   fovy: 45
 - name: cam_top
   pos: [0.0, 0.0, 2.6]
-  xyaxes: [-1, 0, 0, 0, -1, 0]
+  xyaxes: [1, 0, 0, 0, 1, 0]
   fovy: 42
 environment:
 - name: table

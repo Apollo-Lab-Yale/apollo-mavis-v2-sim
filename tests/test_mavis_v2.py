@@ -131,42 +131,47 @@ def test_keyframe_rails_at_zero_and_gripper_ready_in_the_channel(built):
     assert tool_z[2] < -0.98  # tool pointing straight down
 
 
-def test_overviews_are_taken_from_the_operator_side(built, desc):
-    """Operator convention: the operator stands at the OUTER edge (+Y) facing -Y, i.e.
-    facing the arms with the camera arm nearest. Every overview looks from +Y toward
-    -Y, so image right = -X and the outer edge is at the bottom of the top view."""
+def test_overviews_put_the_obstacle_on_the_image_left(built, desc):
+    """Overview convention: every image is framed so the red obstacle (the -X /
+    empty end) is on the LEFT, matching what the operator sees in the real cell.
+    All three overviews look from the -Y side toward +Y, so image right = +X and
+    the top view has the outer edge (+Y) at the top of the frame."""
     cams = {c["name"]: c for c in desc["cameras"]}
-    assert cams["cam_front"]["pos"] == [0.0, 2.0, 1.9]
-    assert cams["cam_front"]["xyaxes"] == [-1, 0, 0, 0, -0.55, 1]
+    assert cams["cam_front"]["pos"] == [0.0, -2.0, 1.9]
+    assert cams["cam_front"]["xyaxes"] == [1, 0, 0, 0, 0.55, 1]
     assert cams["cam_top"]["pos"] == [0.0, 0.0, 2.6]
-    assert cams["cam_top"]["xyaxes"] == [-1, 0, 0, 0, -1, 0]
+    assert cams["cam_top"]["xyaxes"] == [1, 0, 0, 0, 1, 0]
     model, data = built.model, mujoco.MjData(built.model)
     mujoco.mj_forward(model, data)
     table = model.geom("table")
     table_top = table.pos + [0.0, 0.0, table.size[2]]
+    obstacle = model.geom("obstacle").pos
     for name in ("cam_front", "cam_top"):
         cid = model.camera(name).id
         rot = data.cam_xmat[cid].reshape(3, 3)  # columns x, y, z; right-handed: x cross y = z
         np.testing.assert_allclose(np.cross(rot[:, 0], rot[:, 1]), rot[:, 2], atol=1e-6)
-        assert rot[0, 0] < -0.99  # image right = -X
+        assert rot[0, 0] > 0.99  # image right = +X
         look, to_table = -rot[:, 2], table_top - data.cam_xpos[cid]
         assert look @ to_table / np.linalg.norm(to_table) > 0.99  # aimed at the table centre
+        # the obstacle projects LEFT of the table centre along the image-right axis
+        assert (obstacle - table.pos) @ rot[:, 0] < 0
     top = data.cam_xmat[model.camera("cam_top").id].reshape(3, 3)
-    np.testing.assert_allclose(top[:, 1], [0, -1, 0], atol=1e-9)  # image up = -Y (outer edge low)
+    np.testing.assert_allclose(top[:, 1], [0, 1, 0], atol=1e-9)  # image up = +Y (outer edge high)
 
 
-def test_view_puts_the_free_camera_at_the_outer_edge(built, desc):
-    """``view`` -> <visual><global azimuth elevation>: azimuth -90 puts MuJoCo's free camera
-    (runtime ``sim`` stream) at +Y looking -Y, so the camera-only arm renders nearer
-    than the gripper arm -- the operator's picture."""
-    assert desc["view"] == {"azimuth": -90.0, "elevation": -30.0}
+def test_view_puts_the_obstacle_on_the_left(built, desc):
+    """``view`` -> <visual><global azimuth elevation>: azimuth +90 puts MuJoCo's free
+    camera (runtime ``sim`` stream) at -Y looking +Y, so the obstacle (the -X end)
+    is on the LEFT of the image -- the operator's picture. From this side the
+    gripper arm (-Y) renders nearer than the camera-only arm (+Y)."""
+    assert desc["view"] == {"azimuth": 90.0, "elevation": -30.0}
     g = built.model.vis.global_
-    assert (g.azimuth, g.elevation) == (-90.0, -30.0)
+    assert (g.azimuth, g.elevation) == (90.0, -30.0)
     az, el = np.radians(g.azimuth), np.radians(g.elevation)
     # mjv free camera: forward from azimuth/elevation, camera = lookat - distance * forward
     forward = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
-    np.testing.assert_allclose(forward, [0.0, -np.cos(el), np.sin(el)], atol=1e-12)
-    assert forward[1] < 0  # looking toward -Y from the +Y side (camera = lookat - d * forward)
+    np.testing.assert_allclose(forward, [0.0, np.cos(el), np.sin(el)], atol=1e-12)
+    assert forward[1] > 0  # looking toward +Y from the -Y side (camera = lookat - d * forward)
     view_y = built.model.body("view_rail_base").pos[1]
     grip_y = built.model.body("grip_rail_base").pos[1]
-    assert (view_y * forward[1]) < (grip_y * forward[1])  # smaller depth along forward = nearer
+    assert (grip_y * forward[1]) < (view_y * forward[1])  # smaller depth along forward = nearer
