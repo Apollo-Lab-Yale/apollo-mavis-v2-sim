@@ -55,10 +55,24 @@ class ArmSpec(BaseModel):
     base_quat: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)  # wxyz
     gripper: Literal["xarm", "none"] = "xarm"
     wrist_cam: bool = True
+    # Microphone body (RODE NT-USB Mini + bracket) in front of the wrist camera:
+    # a joint-less cylinder coaxial with the link7 flange (03-sim §3). Only a
+    # camera-only arm can carry it -- on a gripper arm the 0.19 m cylinder would
+    # run through the 0.172 m gripper and its jointed fingers.
+    microphone: bool = False
 
     @property
     def has_rail(self) -> bool:
         return self.model == "xarm7_on_rail"
+
+    @model_validator(mode="after")
+    def _microphone_needs_camera_only_arm(self) -> ArmSpec:
+        if self.microphone and not (self.wrist_cam and self.gripper == "none"):
+            raise ValueError(
+                f"arm {self.id!r}: microphone requires wrist_cam: true and gripper: none "
+                f"(got wrist_cam={self.wrist_cam}, gripper={self.gripper!r})"
+            )
+        return self
 
 
 class CameraSpec(BaseModel):
@@ -103,6 +117,8 @@ class SceneDescriptor(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: str
     description: str
+    title: str | None = None  # display name (UI); None -> callers fall back to description
+    hidden: bool = False  # dev-only scene: kept for CI/tests, filtered from registry listings
     suitable_for: tuple[Literal["sim", "twin"], ...] = ("sim", "twin")
     options: SceneOptions = SceneOptions()
     offscreen: OffscreenSpec = OffscreenSpec()
@@ -154,6 +170,10 @@ class SceneOverrides:
     arm_ids: tuple[str, ...] | None = None  # subset of descriptor arms to instantiate
     base_pose: dict[str, Pose] = field(default_factory=dict)  # per-arm world pose
     geom_inflation_m: float | None = None  # twin only: TOTAL pair inflation (gap = d/2)
+    # Per-arm microphone body on/off (same shape as base_pose); overrides the
+    # descriptor's ArmSpec.microphone so ONE YAML serves the mic-less sim scene
+    # and the hardware digital twin (ArmConfig.microphone -> {arm_id: True}).
+    microphones: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -169,6 +189,9 @@ class SceneMeta:
     cameras: tuple[str, ...]  # named MJCF cameras (post-prefix names)
     suitable_for: frozenset[str]  # {"sim", "twin"}
     allowed_pairs: tuple[tuple[str, str], ...] = ()  # scene-authored structural pairs
+    title: str | None = None  # display name; runtime label = title or description
+    hidden: bool = False  # filtered from SceneRegistry.list() by default
+    microphones: dict[str, bool] = field(default_factory=dict)  # per arm id, post-override
 
 
 __all__ = [

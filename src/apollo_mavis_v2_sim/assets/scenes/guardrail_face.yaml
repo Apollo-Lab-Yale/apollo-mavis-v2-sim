@@ -4,6 +4,7 @@
 # gripper; no environment obstacles between them.
 id: guardrail_face
 description: guardrail CI cell - two railed arms facing each other
+hidden: true  # dev/CI scene: built by id, not listed to the UI (03-sim §4)
 suitable_for: [sim, twin]
 arms:
   - id: arm0

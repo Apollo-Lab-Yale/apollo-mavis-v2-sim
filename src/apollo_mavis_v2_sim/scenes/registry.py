@@ -39,8 +39,13 @@ class SceneRegistry:
             self._descriptors = descriptors
         return self._descriptors
 
-    def list(self) -> list[SceneMeta]:
-        return [scene_meta(d) for d in self._load().values()]
+    def list(self, include_hidden: bool = False) -> list[SceneMeta]:
+        """Registry rows; ``hidden`` dev scenes (CI cells, composition fixtures)
+        are filtered unless ``include_hidden``. ``descriptor``/``meta``/``build``
+        stay id-based and unfiltered so tests and guardrail CI keep building them."""
+        return [
+            scene_meta(d) for d in self._load().values() if include_hidden or not d.hidden
+        ]
 
     def descriptor(self, scene_id: str) -> SceneDescriptor:
         try:

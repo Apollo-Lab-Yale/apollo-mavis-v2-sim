@@ -12,10 +12,17 @@ Run:  uv run python -m apollo_mavis_v2_sim.tools.guardrail_check --all
 
 Scenarios: ``env_table_descend`` / ``env_pedestal_sweep`` (arm↔environment),
 ``cross_arm_head_on`` / ``cross_arm_rail_converge`` (arm↔arm),
-``mavis_v2_rail_sweep`` (the lab cell's gripper arm along the channel into its obstacle). Assertion
-contract A1–A5 in ``_assert_*`` below. Ground truth = the *physics* model
-with zero inflation: any sim contact ``dist <= 0`` between geoms matching
-``target_pair_prefixes`` is a real-contact failure.
+``mavis_v2_rail_sweep`` (the lab cell's Manipulation Arm ``grip`` along the
+channel into its obstacle) and ``mavis_v2_rail_sweep_mic`` (same, with the hardware
+twin's microphone body on the Perception Arm ``view`` via
+``GuardrailScenario.overrides``). A scenario may start from its own posture
+(``GuardrailScenario.start_q``, core order, rail LAST) instead of the scene
+keyframe: the mavis_v2 keyframe is the cell's folded initial state (rails at
+opposite ends), from which a +X sweep reaches nothing, so both mavis scenarios
+teleport to a lowered ready pose in the channel first. Assertion contract A1–A5 in
+``_assert_*`` below. Ground truth = the *physics* model with zero inflation: any
+sim contact ``dist <= 0`` between geoms matching ``target_pair_prefixes`` is a
+real-contact failure.
 """
 
 from __future__ import annotations
@@ -23,6 +30,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import mujoco
@@ -40,7 +48,7 @@ from apollo_mavis_v2_core import (
 from apollo_mavis_v2_core.schemas import PoseModel
 
 from ..ik import IKParams, MinkIKSolver, default_collision_pairs
-from ..scenes import REGISTRY
+from ..scenes import REGISTRY, SceneOverrides
 from ..twin import DigitalTwin
 from ..workcell import CTRL_DT, SimWorkcell
 
@@ -62,6 +70,12 @@ class GuardrailScenario:
     escape_after_block_ticks: int = 50  # then reverse the twist
     graze_twist: np.ndarray | None = None  # tangential variant (A5, IK ON)
     graze_ticks: int = 700
+    # Build overrides applied to BOTH the played robot and the twin (e.g. the
+    # hardware digital twin's microphone body: SceneOverrides(microphones=...)).
+    overrides: SceneOverrides | None = None
+    # Scenario-local start posture per arm (CORE order: j1..j7, rail LAST), written
+    # into the played robot before the run; arms not listed keep the scene keyframe.
+    start_q: Mapping[str, np.ndarray] | None = None
 
 
 @dataclass
@@ -186,6 +200,19 @@ def _tw(*v: float) -> np.ndarray:
     return np.array(v, dtype=np.float64)
 
 
+# mavis_v2 sweep start posture (CORE order: j1..j7, rail LAST) — the cell's
+# pre-2026-09-04 keyframe, kept here so the scenario premise (03-sim §4.3 /
+# §11) survives the keyframe becoming the folded initial state. Both rails at
+# q = 0.5974 (the −X end): 'grip' elbow-up in the channel, tool straight down,
+# TCP 4.5 cm below the obstacle top and ~0.9 m to its −X; 'view' parked ~1.4 m
+# up over the workspace, D435 looking down (20 deg toward +X), clear of the
+# sweep even with the microphone body on.
+MAVIS_SWEEP_START_Q: Mapping[str, np.ndarray] = {
+    "grip": _tw(4.6356, -0.4748, 0.6498, 0.3665, 0.3977, 0.7955, -0.3882, 0.5974),
+    "view": _tw(4.7376, -1.4648, -0.0307, 0.8091, -0.0409, 1.917, 1.5726, 0.5974),
+}
+
+
 SCENARIOS: dict[str, GuardrailScenario] = {
     s.scenario_id: s
     for s in (
@@ -225,12 +252,17 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             graze_twist=_tw(0.0, 0.10, 0.02, 0.0, 0.0, 0.0),
             graze_ticks=1100,
         ),
-        # Lab cell (mavis_v2): the untouchable obstacle stands at the +X end
-        # of the channel (operator's left); the gripper arm rests at the −X end
-        # (operator's right, rail q ~ 0.597 — travel is reversed by the yaw +90
-        # remount that turns each rail's plate to −Y) with the TCP below the
-        # obstacle top and is driven +X in world along the channel — the IK carries
-        # the rail toward q=0 — until its face is reached. Graze: same sweep while
+        # Lab cell (mavis_v2): the untouchable obstacle stands at the +X end of
+        # the channel (operator's left). The scene keyframe is the cell's INITIAL
+        # STATE (both arms folded at the xArm zero, rails at opposite ends), which
+        # a +X sweep cannot bring into contact with anything, so the scenario
+        # starts from MAVIS_SWEEP_START_Q instead: the Manipulation Arm 'grip' at
+        # the −X end (operator's right, rail q ~ 0.597 — travel is reversed by the
+        # yaw +90 remount that turns each rail's plate to −Y) in an elbow-up ready
+        # pose with the TCP 4.5 cm below the obstacle top, the Perception Arm
+        # 'view' parked high over the workspace and out of the sweep. The TCP is
+        # driven +X in world along the channel — the IK carries the rail toward
+        # q=0 — until the obstacle's face is reached. Graze: same sweep while
         # rising 3 cm/s, clearing the top by ~8 cm.
         GuardrailScenario(
             scenario_id="mavis_v2_rail_sweep",
@@ -240,12 +272,27 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             target_pair_prefixes=("grip_", "obstacle"),
             graze_twist=_tw(0.12, 0.0, 0.03, 0.0, 0.0, 0.0),
             graze_ticks=520,
+            start_q=MAVIS_SWEEP_START_Q,
+        ),
+        # Same sweep with the deployment twin's geometry: the Perception Arm
+        # carries the microphone cylinder (03-sim §3), as the hardware digital
+        # twin builds it (ArmConfig.microphone -> SceneOverrides).
+        GuardrailScenario(
+            scenario_id="mavis_v2_rail_sweep_mic",
+            scene_id="mavis_v2",
+            driven_arm="grip",
+            twist=_tw(0.12, 0.0, 0.0, 0.0, 0.0, 0.0),
+            target_pair_prefixes=("grip_", "obstacle"),
+            graze_twist=_tw(0.12, 0.0, 0.03, 0.0, 0.0, 0.0),
+            graze_ticks=520,
+            overrides=SceneOverrides(microphones={"view": True}),
+            start_q=MAVIS_SWEEP_START_Q,
         ),
     )
 }
 
 
-def _build_real_robot_scene(scene_id: str):
+def _build_real_robot_scene(scene_id: str, overrides: SceneOverrides | None = None):
     """Scene compiled with hardware-grade servo fidelity for the played robot.
 
     The menagerie position actuators sag 1-2 cm under gravity and the mavis
@@ -259,7 +306,7 @@ def _build_real_robot_scene(scene_id: str):
     from ..scenes.addressing import Addressing
     from ..scenes.builder import BuiltScene
 
-    scene = REGISTRY.build(scene_id)
+    scene = REGISTRY.build(scene_id, overrides)
     spec = scene.spec
     for body in spec.bodies:
         body.gravcomp = 1.0
@@ -290,6 +337,22 @@ def _sim_config(scene) -> WorkcellConfig:
             safety_debug=True, geom_inflation_m=SAFETY_DEBUG_INFLATION_M
         ),
     )
+
+
+def _start_from(cell: SimWorkcell, q_by_arm: Mapping[str, np.ndarray]) -> None:
+    """Teleport the played robot to a scenario-local posture (core order, rail LAST).
+
+    Written straight into the physics state (as a keyframe reset would be) and
+    into the servo targets, so the scenario premise does not depend on the
+    scene keyframe; ``step_virtual`` afterwards lets the servos settle.
+    """
+    data = cell._data  # same private access as _ground_truth_contacts
+    for arm_id, q in q_by_arm.items():
+        addr = cell.scene.addressing[arm_id]
+        data.qpos[addr.qpos_adr] = q
+        cell.arms[arm_id].command_joints(np.asarray(q, dtype=np.float64))
+    data.qvel[:] = 0.0
+    mujoco.mj_forward(cell._model, data)
 
 
 def _tcp_world(twin: DigitalTwin, arm_id: str) -> Pose:
@@ -345,10 +408,12 @@ def run_scenario(
     twist0 = s.graze_twist if graze else s.twist
     assert twist0 is not None
     max_ticks = s.graze_ticks if graze else s.max_ticks
-    sim_scene = _build_real_robot_scene(s.scene_id)
+    sim_scene = _build_real_robot_scene(s.scene_id, s.overrides)
     cfg = SafetyConfig(safety_debug=True, geom_inflation_m=SAFETY_DEBUG_INFLATION_M)
     cell = SimWorkcell(sim_scene, _sim_config(sim_scene))
-    twin = DigitalTwin(REGISTRY.build(s.scene_id), inflation_m=cfg.geom_inflation_m)
+    twin = DigitalTwin(
+        REGISTRY.build(s.scene_id, s.overrides), inflation_m=cfg.geom_inflation_m
+    )
     ik = MinkIKSolver(
         twin.scene,
         IKParams(min_distance_m=cfg.geom_inflation_m + 0.002),
@@ -360,7 +425,9 @@ def run_scenario(
     labels = geom_labels(sim_scene.model)
     res = ScenarioResult(s.scenario_id, variant, ik_avoidance)
 
-    cell.step_virtual(20)  # let servos settle onto the keyframe posture
+    if s.start_q:
+        _start_from(cell, s.start_q)
+    cell.step_virtual(20)  # let servos settle onto the start posture
     states = cell.states()
     for arm_id in cell.arms:
         ik.reset(arm_id, states[arm_id].q)
@@ -518,7 +585,7 @@ def _run_and_report(
     else:
         fails = _assert_gate_contract(s, res)
     dt_s = time.perf_counter() - t0
-    tag = f"{s.scenario_id:<24} {variant:<5} ik={'on ' if ik_avoidance else 'off'}"
+    tag = f"{s.scenario_id:<28} {variant:<5} ik={'on ' if ik_avoidance else 'off'}"
     line = (
         f"{'PASS' if not fails else 'FAIL'}  {tag}  "
         f"ticks={res.ticks_run:<5} blocks={len(res.blocked_events)} "

@@ -1,46 +1,54 @@
 # MAVIS v2 lab cell (Apollo Lab, tape-measured 2026-09-02) — digital-twin reference
 # scene for the real hardware AND a sim scenario. Generated from the measurements
 # below (docs/design/03-sim.md §4.3 has the arithmetic); edit the numbers there.
+# Arms (user-facing names, internal ids in parentheses): the Perception Arm ('view',
+# wrist RealSense D435 + RØDE NT-USB Mini) on the outer rail nearest the operator; the
+# Manipulation Arm ('grip', xArm Gripper G2 + wrist camera) on the inner rail.
 #
 # World frame (defined from the OPERATOR, who is the authority on left/right):
 # z-up, origin on the FLOOR under the table centre. +Y points to the OUTER edge =
-# the long edge the operator stands at (the camera rail is next to it, so the
-# camera-only arm is the one NEAREST the operator). The operator faces the arms
-# (−Y). Facing that way, the operator's RIGHT hand points to −X and LEFT to +X:
-#   - both arms REST at the operator's RIGHT (−X end, flush with the table edge)
-#     — "the arms are against the rightmost edge";
-#   - the untouchable obstacle stands at the operator's LEFT (+X end) — "the
-#     obstacle is against the leftmost edge".
+# the long edge the operator stands at (the Perception Arm's rail is next to it, so
+# that arm is the one NEAREST the operator). The operator faces the arms (−Y). Facing
+# that way, the operator's RIGHT hand points to −X and LEFT to +X:
+#   - the Manipulation Arm (grip) starts at the operator's RIGHT (−X end, the rail
+#     end flush with the table edge) — "the gripper arm is against the rightmost edge";
+#   - the Perception Arm (view) starts at the operator's LEFT (+X end, rail zero),
+#     next to the untouchable obstacle, which stands at the operator's LEFT (+X end)
+#     — "the obstacle is against the leftmost edge".
 # Rail orientation (base_quat yaw +90): each rail is turned end-for-end so its thin
 # cable-tray plate faces the table interior (−Y, AWAY from the operator) and the arm
 # base rides the OUTER (+Y) side — the real cell. The linear rail is a chiral part,
 # so "plate away from the operator" is a genuine 180° rotation about z (NOT a mirror,
 # which would change the mesh handedness); the price is that travel is reversed:
-# rail zero (q=0) now sits at the operator's LEFT (+X) and a qpos INCREASE drives the
-# carriage toward −X, so the arm's rest pose is at rail q ≈ 0.597 (the −X/right end),
-# not q=0. The 180° base flip is undone in the keyframe by joint 1 += π, so the arms
-# reach the exact same world workspace as before (verified collision-free in-sim).
+# rail zero (q=0) sits at the operator's LEFT (+X) and a qpos INCREASE drives the
+# carriage toward −X — so grip at q = 0.65 (full travel) is the operator's RIGHT end
+# and view at q = 0 is the operator's LEFT end. The 180° base flip means joint 1 = π
+# (not 0) is the arm's "forward-facing" zero: the keyframe folds each arm's tool
+# toward −Y (away from the operator).
 # NOTE: an earlier version encoded this cell mirrored in X from an inner-side
 # viewpoint; a later fix (yaw −90) put the arms/obstacle on the operator-correct
 # sides but left the plate facing the operator. Corrected 2026-09-03 by turning each
-# rail 180° (yaw +90) — plate now faces away, layout unchanged (camera-only arm
-# nearest, arms on the image RIGHT, obstacle on the image LEFT).
+# rail 180° (yaw +90) — plate now faces away, layout unchanged. Until 2026-09-04 both
+# arms rested together at the −X end (rail q ≈ 0.597, a lowered ready pose); the
+# initial state was then set to the opposite-ends zero posture below (user decision).
 #
 # Table: 1.215 x 0.62 x 0.03 m, top surface at z = 0.735 m.
 # Rails: two identical rails parallel to X, feet on the table top (arm mounting
 #   plane z = 0.735 + 0.107188 = 0.842188, mavis rail mesh), mounted the SAME way:
 #   arm base rides the OUTER (+Y) side, thin cable-tray plate toward the table
 #   interior (−Y, away from the operator); q=0 at the operator's LEFT end (+X),
-#   qpos increases toward −X (arm rest at q ≈ 0.597, the −X/right end).
-#   camera-only arm 'view': rail outer edge 2.6 cm from the outer edge -> y0 = 0.2116
-#   gripper arm 'grip': 39.5 cm inward (base lines)                   -> y0 = -0.1834
+#   qpos increases toward −X (q = 0.65 is the −X/right end).
+#   Perception Arm 'view': rail outer edge 2.6 cm from the outer edge -> y0 = 0.2116
+#   Manipulation Arm 'grip': 39.5 cm inward (base lines)                -> y0 = -0.1834
 #     its plate edge is 0.7 cm from the inner edge; channel between the rail
 #     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
-#   rail's −X (arm-rest) end FLUSH with the table's −X edge (operator's right) at
-#     x = -0.6075; base centre x0 = +0.2375 (mavis mesh: 0.2476 m from the base
-#     centre to the +X/zero end at +0.4851, 12.2 cm from the +X edge; mesh length
-#     1.0926 m — unverified). The carriage's near edge is 15.0 cm from the −X edge
-#     at rest (user: 'arm ~14 cm'), the base cylinder 18.5 cm.
+#   rail's −X end FLUSH with the table's −X edge (operator's right) at x = -0.6075;
+#     base centre x0 = +0.2375 (mavis mesh: 0.2476 m from the base centre to the
+#     +X/zero end at +0.4851, 12.2 cm from the +X edge; mesh length 1.0926 m —
+#     unverified). At the measured 2026-09-02 rest (q ≈ 0.597) the carriage's near
+#     edge is 15.0 cm from the −X edge (user: 'arm ~14 cm'), the base cylinder 18.5 cm;
+#     at the keyframe's q = 0.65 the mesh carriage edge is 9.7 cm from that edge
+#     (phase-09: confirm the real track's far stop is at that position).
 # Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
 #   the +X table edge (operator's LEFT, the empty end), in the channel between the
 #   rails; near face 27.5 cm in from the outer edge as measured -> y in [-0.1250,
@@ -48,22 +56,58 @@
 #   mesh rail reaches 3.8 cm into the obstacle's x-span: a static corner overlap
 #   (rail mesh length/width vs the real track — phase-09 calibration; no effect on
 #   the twin or physics, both are welded to the world).
-# Keyframe (MJCF order, rail FIRST): rails at rest q ≈ 0.597 (the −X/right end, arm
-#   against the rightmost edge); 'grip' elbow-up ready pose in the channel, tool down,
-#   TCP 4.5 cm below the obstacle top (guardrail scenario 'mavis_v2_rail_sweep' drives
-#   the TCP +X in world along the channel into the obstacle's face — the IK carries
-#   the rail toward −X/q=0); 'view' parked ~1.3 m up over the workspace, D435 down.
+# Keyframe = the cell's INITIAL STATE (MJCF order, rail FIRST; user decision
+#   2026-09-04): both arms at the xArm7 factory zero posture with joint 1 = π and
+#   joints 2-7 = 0, rails at OPPOSITE ends — grip q = 0.65 (−X, operator's right,
+#   link_base x = −0.4125), view q = 0 (+X, operator's left, link_base x = +0.2375,
+#   its carriage 11.2 cm short of the obstacle's −X face and 9.7 cm outside its y
+#   span). The xArm7 zero is a FOLDED pose (forearm hanging beside the upper arm, tool
+#   pointing straight down, flange 12.05 cm above the mounting plane and 20.6 cm to
+#   the side); joint 1 = π puts that side at −Y, away from the operator: the gripper
+#   hangs at y ≈ −0.39 (8 cm outside the table's inner edge, finger pads 9.3 cm above
+#   the table plane), the D435 hangs into the channel at y ≈ 0.006 looking down.
+#   Twin audit at δ = 0.008 and 0.025, mic off and on: clean, given the intra-arm
+#   allowed pair link2↔link4 below. Smallest monitored clearances: grip finger pads ↔
+#   table 9.3 cm, link_base ↔ table 10.7 cm, view_d435_mount ↔ grip rail 12.4 cm,
+#   view carriage ↔ obstacle 15.4 cm; with the mic on: mic tip ↔ table 3.8 cm (the
+#   mic points at the table; tip z ≈ 0.773), mic ↔ grip rail 7.7 cm, mic ↔ own link1
+#   12.4 cm, mic ↔ obstacle 17 cm. Gripper open. The guardrail scenarios
+#   'mavis_v2_rail_sweep[_mic]' no longer start here: they teleport to their own
+#   lowered ready pose (the pre-2026-09-04 keyframe) before sweeping +X along the
+#   channel into the obstacle's face.
+# allowed_pairs: carriage ↔ table (24 mm by construction) and, per arm, link2 ↔ link4:
+#   at the factory zero the elbow housing sits 1.78 cm from the shoulder housing —
+#   inside the safety_debug band (0.025) forever while J4 ≈ 0 (J4 ≥ 0.10 rad would
+#   open it past 2.5 cm). The pair can truly meet only near J4's −11° stop with J3
+#   rolled; intra-arm self-collision is the xArm controller's own job. The twin's
+#   audit and gate (mj_collision's full contact list) therefore ignore it -- the
+#   clearance sweep / IK rows never held intra-arm pairs -- and physics still collides.
 # Cameras / view (operator convention): every overview is framed as the OPERATOR
-#   sees the cell — the red obstacle (the +X / empty end) on the LEFT of the image,
-#   the arms (at rest, −X) on the RIGHT, the camera-only arm nearest. All three look
-#   from the +Y (operator) side toward −Y: cam_front sits at +Y looking −Y and down
-#   (image right = −X), cam_top looks straight down with image up = −Y (near +Y edge
-#   at the bottom, image right = −X), and `view` sets the MuJoCo free camera (runtime
-#   "sim" stream) to azimuth −90 = at +Y looking −Y. The free camera renders the
-#   model statistic centre; the scene cameras are pinned by tests/test_mavis_v2.py.
+#   sees the cell — the red obstacle (the +X / empty end) and the Perception Arm on
+#   the LEFT of the image, the Manipulation Arm (−X end) on the RIGHT, the Perception
+#   Arm nearest. All three look from the +Y (operator) side toward −Y: cam_front sits
+#   at +Y looking −Y and down (image right = −X), cam_top looks straight down with
+#   image up = −Y (near +Y edge at the bottom, image right = −X), and `view` sets the
+#   MuJoCo free camera (runtime "sim" stream) to azimuth −90 = at +Y looking −Y. The
+#   free camera renders the model statistic centre; the scene cameras are pinned by
+#   tests/test_mavis_v2.py.
+# Microphone (RØDE NT-USB Mini + bracket) on the Perception Arm 'view': OPTIONAL
+#   collision body, OFF here (pure sim) and switched ON for the hardware digital twin
+#   via SceneOverrides(microphones={view: true}) (runtime maps ArmConfig.microphone).
+#   Geometry (link7 frame; the link7 origin is the flange face, +z the flange axis):
+#   one cylinder coaxial with the flange, radius 0.040 m (8 cm diameter), z in
+#   [0, 0.19] -- from the flange face to 14 cm past the wrist-cam plane z = 0.05
+#   (MJCF size [0.040, 0.095], pos [0, 0, 0.095]); explicit mass 0.45 kg (to be
+#   weighed). The D435 block sits at x >= 0.055, so the radial gap is 1.5 cm (only
+#   the 3 mm mount plate lies inside the footprint: same welded body, never a pair).
+#   The body is joint-less: nq/nu/keyframes are unchanged; pair label
+#   'view_microphone'. The mic occludes ~12 % of the view wrist-cam image (a dark
+#   silhouette centred on the bottom edge) -- by design, as on the real mount. Only a
+#   camera-only arm may carry it (ArmSpec validator: wrist_cam true, gripper none).
 id: mavis_v2
-description: MAVIS v2 cell - camera arm on the outer rail + gripper arm 39.5 cm inward, 1.215 x 0.62 table,
-  obstacle at the left end of the channel
+title: APOLLO MAVIS V2 Digital Twin
+description: MAVIS v2 cell - Perception Arm (view) on the outer rail + Manipulation Arm (grip) 39.5 cm
+  inward, 1.215 x 0.62 table, obstacle at the left end of the channel
 suitable_for: [sim, twin]
 arms:
 - id: view
@@ -72,6 +116,7 @@ arms:
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: none
   wrist_cam: true
+  microphone: false  # hardware twin: true via SceneOverrides.microphones (see header)
 - id: grip
   model: xarm7_on_rail
   base_pos: [0.2375, -0.1834, 0.842188]
@@ -102,9 +147,11 @@ environment:
 allowed_pairs:
 - [view_rail_platform, table]
 - [grip_rail_platform, table]
-keyframe:
+- [view_link2, view_link4]  # 1.78 cm at the factory zero posture (see header)
+- [grip_link2, grip_link4]
+keyframe:  # initial state: [rail, j1..j7]; j1 = pi, rails at opposite ends (header)
   view:
-    q: [0.5974, 4.7376, -1.6648, -0.0307, 0.6091, -0.0409, 1.917, 1.5726]
+    q: [0.0, 3.141592653589793, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   grip:
-    q: [0.5974, 4.6356, -0.4748, 0.6498, 0.3665, 0.3977, 0.7955, -0.3882]
+    q: [0.65, 3.141592653589793, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     gripper: 1.0

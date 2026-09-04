@@ -3,6 +3,7 @@
 # on the floor (rail mesh bottom offset below the platform top).
 id: single_rail
 description: one rail-mounted xArm7, 0.65 m travel along +Y
+hidden: true  # dev/CI scene: built by id, not listed to the UI (03-sim §4)
 suitable_for: [sim, twin]
 arms:
   - id: arm0

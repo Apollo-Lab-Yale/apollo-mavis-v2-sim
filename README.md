@@ -46,15 +46,20 @@ composed `spec.to_xml()` is persisted with every episode for replay. After
 adding or editing a scene run `uv run python -m apollo_mavis_v2_sim.tools.gen_asset_manifest`
 (scene YAMLs are hashed into `ASSET_MANIFEST.json`).
 
-| scene | arms | notes |
-|---|---|---|
-| `single_rail`, `single_fixed_tabletop` | 1 | dev defaults (runtime `configs/sim.yaml`) |
-| `dual_rail_tabletop`, `dual_mixed`, `triple_rail_row` | 2–3 | composition coverage |
-| `guardrail_env`, `guardrail_face`, `guardrail_rail` | 1–2 | safety CI cells |
-| `mavis_v2` | 2 | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.5 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the left end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
+| scene | arms | listed | notes |
+|---|---|---|---|
+| `single_rail`, `single_fixed_tabletop` | 1 | hidden | dev defaults (runtime `configs/sim.yaml`) |
+| `dual_rail_tabletop`, `dual_mixed`, `triple_rail_row` | 2–3 | hidden | composition coverage |
+| `guardrail_env`, `guardrail_face`, `guardrail_rail` | 1–2 | hidden | safety CI cells |
+| `mavis_v2` | 2 | **APOLLO MAVIS V2 Digital Twin** | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.5 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the left end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
 
+`REGISTRY.list()` returns only the visible scene (`hidden: true` scenes are filtered
+unless `list(include_hidden=True)`); `descriptor()/meta()/build()` resolve every id.
 `gripper: none` + `wrist_cam: true` composes a camera-only arm (TCP at the
-flange, D435 + stand collidable). `allowed_pairs:` declares structural
+flange, D435 + stand collidable); such an arm may add `microphone: true` — or the
+hardware twin passes `SceneOverrides(microphones={"view": True})` — for the RØDE
+NT-USB Mini collision cylinder in front of the lens (8 cm diameter, 14 cm past the
+camera plane; docs/design/03-sim §3). `allowed_pairs:` declares structural
 near-contacts the twin must not treat as hazards (docs/design/03-sim §4.2).
 
 ## Measured numbers (Threadripper PRO 5975WX + RTX 4090, single thread)

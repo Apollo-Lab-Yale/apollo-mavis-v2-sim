@@ -3,6 +3,7 @@
 # on/off in a single scene; sim-only.
 id: dual_mixed
 description: one railed and one fixed arm facing each other
+hidden: true  # dev/CI scene: built by id, not listed to the UI (03-sim §4)
 suitable_for: [sim]
 arms:
   - id: rail0

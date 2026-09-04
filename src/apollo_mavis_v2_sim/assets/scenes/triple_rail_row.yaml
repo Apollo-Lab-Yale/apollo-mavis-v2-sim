@@ -3,6 +3,7 @@
 # overlaps neighbouring workspaces mid-rail.
 id: triple_rail_row
 description: three railed arms in a row, rails parallel along +Y
+hidden: true  # dev/CI scene: built by id, not listed to the UI (03-sim §4)
 suitable_for: [sim, twin]
 arms:
   - id: arm0

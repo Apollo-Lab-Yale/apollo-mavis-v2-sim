@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 import mujoco
 import numpy as np
+from pydantic import ValidationError
 
 from ..assets import asset_path
 from ..errors import SceneArmMismatchError, SceneCompileError
@@ -34,6 +35,24 @@ HOME_Q = (0.0, -0.247, 0.0, 0.909, 0.0, 1.15644, 0.0)
 RAIL_HOME_M = 0.325
 N_GRIPPER_JOINTS = 6  # driver/follower/spring-link x left/right
 
+# Microphone body (RODE NT-USB Mini + bracket) on a camera-only arm, link7 frame
+# (03-sim §3). The link7 origin IS the flange face and +z the flange/tool axis.
+# The wrist camera sits at pos (0.07, 0, 0.05) looking +z (child MJCF), i.e. its
+# optical centre is 0.07 m off-axis in +x and its modelled front plane is z=0.05;
+# the D435 block of the d435_with_cam_stand mesh starts at x = 0.055 (only its 3 mm
+# mounting plate, z <= 0.003, lies inside the cylinder footprint -- same welded
+# body, never a contact pair). The mic is a cylinder coaxial with the flange from
+# the flange face (z = 0) to 0.14 m past the camera plane -> tip at z = 0.19,
+# radius 0.040 m (8 cm diameter, user-corrected 2026-09-03) -> 1.5 cm radial gap
+# to the camera block. Pinned by tests/test_mavis_v2.py against the compiled mesh.
+WRIST_CAM_Z_M = 0.05  # <camera name="wrist_cam" pos="0.07 0 0.05"> in link7
+MIC_AHEAD_OF_CAM_M = 0.14  # mic tip beyond the camera plane
+MIC_RADIUS_M = 0.040
+MIC_TIP_Z_M = WRIST_CAM_Z_M + MIC_AHEAD_OF_CAM_M  # 0.19
+MIC_HALF_LENGTH_M = MIC_TIP_Z_M / 2.0  # MuJoCo cylinder size = [radius, half-length]
+MIC_MASS_KG = 0.45  # NT-USB Mini (~0.35 kg) + bracket -- estimate, to be weighed
+MIC_RGBA = (0.12, 0.12, 0.13, 1.0)  # dark housing
+
 
 @dataclass(frozen=True)
 class BuiltScene:
@@ -45,8 +64,8 @@ class BuiltScene:
 
 
 def scene_meta(desc: SceneDescriptor, overrides: SceneOverrides | None = None) -> SceneMeta:
-    """Registry row for a (possibly arm-subsetted) scene."""
-    arms = _selected_arms(desc, overrides)
+    """Registry row for a (possibly arm-subsetted / mic-overridden) scene."""
+    arms = _effective_arms(desc, overrides)
     cameras = tuple(c.name for c in desc.cameras) + tuple(
         f"{a.id}_wrist_cam" for a in arms if a.wrist_cam
     )
@@ -60,12 +79,15 @@ def scene_meta(desc: SceneDescriptor, overrides: SceneOverrides | None = None) -
         cameras=cameras,
         suitable_for=frozenset(desc.suitable_for),
         allowed_pairs=tuple((str(a), str(b)) for a, b in desc.allowed_pairs),
+        title=desc.title,
+        hidden=desc.hidden,
+        microphones={a.id: a.microphone for a in arms},
     )
 
 
 def build_scene(desc: SceneDescriptor, overrides: SceneOverrides | None = None) -> BuiltScene:
     """Compose and compile a scene; raises the typed scene errors on failure."""
-    arms = _selected_arms(desc, overrides)
+    arms = _effective_arms(desc, overrides)
     meta = scene_meta(desc, overrides)
     spec = mujoco.MjSpec()
     spec.modelname = desc.id
@@ -102,7 +124,8 @@ def _validate_allowed_pairs(
 ) -> None:
     """Every scene-authored allowed-pair label must resolve to a pair label
     of the built model (world geom name or ``<arm_id>_<body>``); labels of
-    arms dropped by an ``arm_ids`` override are skipped, typos fail loudly."""
+    arms dropped by an ``arm_ids`` override and ``<arm_id>_microphone`` of
+    arms built without the mic are skipped, typos fail loudly."""
     known = {model.body(b).name for b in range(1, model.nbody)}
     for g in range(model.ngeom):
         if int(model.geom_bodyid[g]) == 0:
@@ -110,9 +133,14 @@ def _validate_allowed_pairs(
             if name:
                 known.add(name)
     dropped = {a.id for a in desc.arms} - {a.id for a in arms}
+    optional = {f"{a.id}_microphone" for a in arms if not a.microphone}
     for pair in desc.allowed_pairs:
         for label in pair:
-            if label in known or any(label.startswith(f"{d}_") for d in dropped):
+            if (
+                label in known
+                or label in optional
+                or any(label.startswith(f"{d}_") for d in dropped)
+            ):
                 continue
             raise SceneCompileError(
                 f"scene {desc.id!r}: allowed_pairs label {label!r} matches no world geom "
@@ -164,7 +192,7 @@ def _add_lights_cameras_environment(spec: mujoco.MjSpec, desc: SceneDescriptor) 
 
 
 def _customize_child(child: mujoco.MjSpec, arm: ArmSpec) -> None:
-    """Per-arm child edits: drop the wrist cam and/or gripper subtree."""
+    """Per-arm child edits: drop the wrist cam and/or gripper subtree, add the mic."""
     modified = False
     if not arm.wrist_cam:
         child.delete(child.body("d435_mount"))  # no joints -> keyframes unaffected
@@ -184,10 +212,37 @@ def _customize_child(child: mujoco.MjSpec, arm: ArmSpec) -> None:
             cam_geom.contype = 1
             cam_geom.conaffinity = 1
         modified = True
+    if arm.microphone:  # ArmSpec validator: camera-only arm (wrist_cam, no gripper)
+        _add_microphone(child)
+        modified = True
     if modified:
         # Editing leaves keyframes "pending"; compiling the child finalizes
         # them so attach prefixes them correctly (MuJoCo warns otherwise).
         child.compile()
+
+
+def _add_microphone(child: mujoco.MjSpec) -> None:
+    """Joint-less ``microphone`` body under link7 with ONE collidable cylinder.
+
+    A separate body (pair label ``<arm>_microphone``) rather than a geom on
+    ``d435_mount`` so twin events name the mic, not the camera. No joint, no
+    actuator, no site: nq/nu/keyframes and the addressing layer are untouched;
+    the twin, IK avoidance rows and guardrail pick the geom up through the
+    per-arm subtree scan. Explicit ``type``/``rgba`` override the child's
+    ``xarm7`` default class (type=mesh, material white).
+    """
+    mic = child.body("link7").add_body(name="microphone")
+    mic.add_geom(
+        name="microphone",
+        type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+        size=[MIC_RADIUS_M, MIC_HALF_LENGTH_M, 0.0],
+        pos=[0.0, 0.0, MIC_HALF_LENGTH_M],  # axis = link7 +z (flange axis), z in [0, tip]
+        rgba=list(MIC_RGBA),
+        contype=1,
+        conaffinity=1,
+        group=0,
+        mass=MIC_MASS_KG,  # explicit (density default would give ~0.6 kg)
+    )
 
 
 def _shrink_child_keyframes(child: mujoco.MjSpec, arm: ArmSpec) -> None:
@@ -253,4 +308,51 @@ def _selected_arms(
     return tuple(a for a in desc.arms if a.id in set(overrides.arm_ids))
 
 
-__all__ = ["HOME_Q", "RAIL_HOME_M", "BuiltScene", "scene_meta", "build_scene"]
+def _effective_arms(
+    desc: SceneDescriptor, overrides: SceneOverrides | None
+) -> tuple[ArmSpec, ...]:
+    """Selected arms with ``SceneOverrides.microphones`` applied.
+
+    The override re-validates the ``ArmSpec`` (the camera-only gate lives in
+    ONE place); an unknown arm id is a ``SceneArmMismatchError`` like
+    ``arm_ids``, a mic on a gripper / camera-less arm a ``SceneCompileError``.
+    """
+    arms = _selected_arms(desc, overrides)
+    if overrides is None or not overrides.microphones:
+        return arms
+    known = {a.id for a in desc.arms}
+    unknown = sorted(i for i in overrides.microphones if i not in known)
+    if unknown:
+        raise SceneArmMismatchError(
+            f"scene {desc.id!r} has arms {sorted(known)}, "
+            f"microphones override names {unknown}"
+        )
+    out: list[ArmSpec] = []
+    for arm in arms:
+        if arm.id not in overrides.microphones:
+            out.append(arm)
+            continue
+        try:
+            out.append(
+                ArmSpec.model_validate(
+                    {**arm.model_dump(), "microphone": bool(overrides.microphones[arm.id])}
+                )
+            )
+        except ValidationError as e:
+            raise SceneCompileError(
+                f"scene {desc.id!r}: microphones override rejected: {e}"
+            ) from e
+    return tuple(out)
+
+
+__all__ = [
+    "HOME_Q",
+    "RAIL_HOME_M",
+    "MIC_RADIUS_M",
+    "MIC_TIP_Z_M",
+    "MIC_MASS_KG",
+    "WRIST_CAM_Z_M",
+    "BuiltScene",
+    "scene_meta",
+    "build_scene",
+]

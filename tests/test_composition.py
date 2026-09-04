@@ -10,8 +10,15 @@ import pytest
 from apollo_mavis_v2_core import Pose
 
 from apollo_mavis_v2_sim import REGISTRY, SceneArmMismatchError, SceneNotFoundError, SceneOverrides
-from apollo_mavis_v2_sim.scenes import SceneView, build_scene
-from apollo_mavis_v2_sim.scenes.builder import HOME_Q, RAIL_HOME_M
+from apollo_mavis_v2_sim.scenes import ArmSpec, SceneView, build_scene
+from apollo_mavis_v2_sim.scenes.builder import (
+    HOME_Q,
+    MIC_MASS_KG,
+    MIC_RADIUS_M,
+    MIC_TIP_Z_M,
+    RAIL_HOME_M,
+    WRIST_CAM_Z_M,
+)
 
 ALL_SCENES = ["single_fixed_tabletop", "single_rail", "dual_rail_tabletop",
               "triple_rail_row", "dual_mixed", "mavis_v2"]
@@ -208,3 +215,109 @@ def test_view_field_sets_the_free_camera_defaults():
     assert (g.azimuth, g.elevation) == (-90.0, -30.0)
     g2 = mujoco.MjModel.from_xml_string(built.xml).vis.global_  # persisted with the episode XML
     assert (g2.azimuth, g2.elevation) == (-90.0, -30.0)
+
+
+# -- microphone body (03-sim §3) ---------------------------------------------
+
+CAM_ONLY_ARM = {
+    "id": "a0", "model": "xarm7_on_rail", "gripper": "none", "wrist_cam": True,
+    "base_pos": (0.0, -0.325, 0.107188),
+}
+
+
+def _cam_only_desc(**arm_extra):
+    from apollo_mavis_v2_sim import SceneDescriptor
+
+    return SceneDescriptor(
+        id="_mic", description="camera-only railed arm", arms=({**CAM_ONLY_ARM, **arm_extra},)
+    )
+
+
+def test_microphone_flag_adds_welded_cylinder_under_link7():
+    built = build_scene(_cam_only_desc(microphone=True))
+    model = built.model
+    assert built.meta.microphones == {"a0": True}
+    body = model.body("a0_microphone")
+    assert model.body(body.parentid[0]).name == "a0_link7"
+    assert body.jntnum[0] == 0 and body.weldid[0] == model.body("a0_link7").weldid[0]
+    assert body.mass[0] == pytest.approx(MIC_MASS_KG)  # explicit, not density-derived
+    geoms = [g for g in range(model.ngeom) if model.geom_bodyid[g] == body.id]
+    assert len(geoms) == 1
+    g = model.geom("a0_microphone")
+    assert g.type[0] == mujoco.mjtGeom.mjGEOM_CYLINDER
+    assert MIC_RADIUS_M == 0.040 and MIC_TIP_Z_M == pytest.approx(WRIST_CAM_Z_M + 0.14)
+    np.testing.assert_allclose(g.size[:2], [MIC_RADIUS_M, MIC_TIP_Z_M / 2])  # [0.040, 0.095]
+    np.testing.assert_allclose(g.pos, [0.0, 0.0, MIC_TIP_Z_M / 2])  # z in [0, 0.19] in link7
+    np.testing.assert_allclose(g.quat, [1.0, 0.0, 0.0, 0.0])  # axis = link7 +z (flange)
+    assert g.contype[0] == 1 and g.conaffinity[0] == 1 and g.group[0] == 0
+    assert g.rgba[3] == 1.0 and max(g.rgba[:3]) < 0.25  # dark housing
+    # joint-less: sizes, keyframes and addressing unchanged vs the mic-less arm
+    plain = build_scene(_cam_only_desc()).model
+    assert (model.nq, model.nu, model.nkey) == (plain.nq, plain.nu, plain.nkey) == (8, 8, 2)
+    np.testing.assert_allclose(model.key(0).qpos, plain.key(0).qpos)
+    assert model.nbody == plain.nbody + 1 and model.ngeom == plain.ngeom + 1
+    assert g.id in set(built.addressing["a0"].geom_ids.tolist())  # subtree scan picks it up
+    assert mujoco.mj_name2id(plain, mujoco.mjtObj.mjOBJ_BODY, "a0_microphone") < 0
+    # persisted XML round-trips with the mic
+    model2 = mujoco.MjSpec.from_string(built.xml).compile()
+    assert model2.body("a0_microphone").id >= 0 and (model2.nq, model2.nu) == (8, 8)
+    np.testing.assert_allclose(model2.geom("a0_microphone").size[:2], g.size[:2])
+
+
+def test_microphone_flag_works_on_the_fixed_child_model_too():
+    built = build_scene(_cam_only_desc(microphone=True, model="xarm7_fixed", base_pos=(0, 0, 0)))
+    assert built.model.body("a0_microphone").id >= 0 and built.model.nq == 7
+
+
+@pytest.mark.parametrize(
+    "bad", [{"gripper": "xarm"}, {"wrist_cam": False}, {"gripper": "xarm", "wrist_cam": False}]
+)
+def test_microphone_requires_camera_only_arm(bad):
+    with pytest.raises(ValueError, match="microphone requires wrist_cam: true and gripper: none"):
+        ArmSpec(**{**CAM_ONLY_ARM, "microphone": True, **bad})
+    with pytest.raises(ValueError, match="microphone"):
+        _cam_only_desc(microphone=True, **bad)
+
+
+def test_microphone_override_toggles_the_same_scene():
+    from apollo_mavis_v2_sim import SceneCompileError
+
+    plain = REGISTRY.build("mavis_v2")
+    assert plain.meta.microphones == {"view": False, "grip": False}
+    assert mujoco.mj_name2id(plain.model, mujoco.mjtObj.mjOBJ_BODY, "view_microphone") < 0
+    mic = REGISTRY.build("mavis_v2", SceneOverrides(microphones={"view": True}))
+    assert mic.meta.microphones == {"view": True, "grip": False}
+    assert mic.model.body("view_microphone").id >= 0
+    assert (mic.model.nq, mic.model.nu) == (plain.model.nq, plain.model.nu) == (22, 17)
+    assert mic.meta.cameras == plain.meta.cameras and mic.meta.arm_ids == plain.meta.arm_ids
+    assert REGISTRY.meta("mavis_v2").microphones == {"view": False, "grip": False}  # unchanged
+    # explicit off, unknown arm, and a mic on the gripper arm
+    off = REGISTRY.build("mavis_v2", SceneOverrides(microphones={"view": False}))
+    assert off.meta.microphones == {"view": False, "grip": False}
+    with pytest.raises(SceneArmMismatchError, match="nope"):
+        REGISTRY.build("mavis_v2", SceneOverrides(microphones={"nope": True}))
+    with pytest.raises(SceneCompileError, match="microphone requires"):
+        REGISTRY.build("mavis_v2", SceneOverrides(microphones={"grip": True}))
+    # composes with an arm subset: the override may name a dropped arm's mate only
+    sub = REGISTRY.build(
+        "mavis_v2", SceneOverrides(arm_ids=("view",), microphones={"view": True})
+    )
+    assert sub.meta.microphones == {"view": True} and sub.model.body("view_microphone").id >= 0
+
+
+def test_allowed_pairs_may_name_a_microphone_that_is_switched_off():
+    from apollo_mavis_v2_sim import SceneDescriptor
+
+    desc = SceneDescriptor(
+        id="_micpair",
+        description="structural pair naming the optional mic",
+        arms=({**CAM_ONLY_ARM},),
+        environment=(
+            {"name": "table", "type": "box", "size": (0.3, 0.3, 0.01), "pos": (0.5, 0, 0.3)},
+        ),
+        allowed_pairs=(("a0_microphone", "table"),),
+    )
+    build_scene(desc)  # mic off: label skipped like a dropped arm's
+    built = build_scene(desc, SceneOverrides(microphones={"a0": True}))
+    assert built.meta.allowed_pairs == (("a0_microphone", "table"),)
+

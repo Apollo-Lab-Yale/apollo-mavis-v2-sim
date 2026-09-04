@@ -5,6 +5,7 @@
 # q is MJCF qpos order (rail slide FIRST) — scene authoring only.
 id: dual_rail_tabletop
 description: two railed arms facing a low table
+hidden: true  # dev/CI scene: built by id, not listed to the UI (03-sim §4)
 suitable_for: [sim, twin]
 arms:
   - id: left
