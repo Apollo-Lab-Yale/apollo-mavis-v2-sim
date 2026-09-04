@@ -1,9 +1,14 @@
 """mavis_v2 — the Apollo lab cell (tape-measured 2026-09-02), digital-twin reference.
 
-Frame (user's definitions): +Y = OUTER edge (the long edge the arms face at rail
-zero; camera rail side); facing the outer edge, +X is to the RIGHT (arms at rail
-zero + obstacle). Pins the scene to the measurements it was generated from
-(03-sim §4.3) so a stray edit of the YAML cannot silently move the twin's obstacles.
+Frame (the operator is the authority on left/right): +Y = OUTER edge, where the
+operator stands (camera rail side, so the camera-only arm is nearest). The operator
+faces the arms (-Y); their RIGHT is -X (both arms REST flush with the -X edge) and
+their LEFT is +X (the obstacle). Each chiral rail is turned end-for-end (base_quat
+yaw +90) so its thin plate faces the interior (-Y, away from the operator); the price
+is reversed travel -- rail zero (q=0) is at the operator's LEFT (+X) and qpos
+increases toward -X, so the arms rest at rail q ~ 0.597 (the -X end). Pins the scene
+to the measurements it was generated from (03-sim §4.3) so a stray edit of the YAML
+cannot silently move the twin's obstacles.
 """
 
 from __future__ import annotations
@@ -50,12 +55,26 @@ def test_table_matches_measurements(built):
     np.testing.assert_allclose(t.pos[2] + t.size[2], TABLE_TOP_Z)
 
 
-def test_rails_same_orientation_zero_at_the_right_end(built):
+def _rail_bar_world(model, data, arm):
+    """World-space vertices of the ``{arm}_rail`` bar mesh at the current pose."""
+    g = model.geom(f"{arm}_rail")
+    mid = g.dataid[0]
+    va, vn = model.mesh_vertadr[mid], model.mesh_vertnum[mid]
+    verts = model.mesh_vert[va : va + vn].reshape(-1, 3)
+    R = data.geom_xmat[g.id].reshape(3, 3)
+    return verts @ R.T + data.geom_xpos[g.id]
+
+
+RAIL_BASE_TO_FAR_X = 0.845  # mavis mesh: base centre -> the -X (arm-rest) end
+
+
+def test_rails_same_orientation_arms_rest_at_operator_right(built):
     model, data = built.model, mujoco.MjData(built.model)
     for arm in ("view", "grip"):
         rail_base = model.body(f"{arm}_rail_base")
         np.testing.assert_allclose(rail_base.pos[2], TABLE_TOP_Z + RAIL_Z)
-        # arm base +X -> world +Y (outer edge); travel increases toward -X
+        # base_quat yaw +90: each chiral rail turned end-for-end so its plate faces
+        # -Y (interior); travel is reversed -> a rail qpos INCREASE drives -X
         np.testing.assert_allclose(rail_base.quat, [0.70710678, 0, 0, 0.70710678], atol=1e-6)
         for q, dx in ((0.0, 0.0), (0.65, -0.65)):
             mujoco.mj_resetDataKeyframe(model, data, 0)
@@ -64,12 +83,22 @@ def test_rails_same_orientation_zero_at_the_right_end(built):
             lb = data.xpos[model.body(f"{arm}_link_base").id]
             np.testing.assert_allclose(lb[:2], rail_base.pos[:2] + [dx, 0.0], atol=1e-6)
     view, grip = model.body("view_rail_base").pos, model.body("grip_rail_base").pos
-    assert view[0] == grip[0]  # both arms share the rail-zero X
+    assert view[0] == grip[0]  # both rails share the base X
     assert view[1] > grip[1]  # camera arm on the outer rail, gripper arm inward
-    # the rails' zero end is flush with the table's right edge (mesh: 0.2476 m past the base)
-    np.testing.assert_allclose(view[0] + 0.2476, HALF_L, atol=1e-3)
-    # ... which puts the carriage's right edge ~15 cm from it (user: "arm ~14 cm")
-    assert 0.13 <= HALF_L - (view[0] + 0.098) <= 0.16
+    mujoco.mj_resetDataKeyframe(model, data, 0)
+    mujoco.mj_forward(model, data)
+    for arm in ("view", "grip"):
+        # the thin plate now sits on the -Y (interior) side, away from the operator
+        by = model.body(f"{arm}_rail_base").pos[1]
+        bar = _rail_bar_world(model, data, arm)
+        assert (by - bar[:, 1].min()) > (bar[:, 1].max() - by)  # more overhang toward -Y
+        # each rail's -X (arm-rest) end is flush with the table's -X edge
+        np.testing.assert_allclose(bar[:, 0].min(), -HALF_L, atol=1e-3)
+        np.testing.assert_allclose(model.body(f"{arm}_rail_base").pos[0] - RAIL_BASE_TO_FAR_X,
+                                   -HALF_L, atol=1e-3)
+        # the arms rest against that edge: carriage near edge ~15 cm in ("arm ~14 cm")
+        lb = data.xpos[model.body(f"{arm}_link_base").id]
+        assert 0.13 <= (lb[0] - 0.098) - (-HALF_L) <= 0.16
 
 
 def test_rail_offsets_from_the_outer_edge(desc):
@@ -84,14 +113,16 @@ def test_obstacle_at_the_left_end_of_the_channel(built):
     model = built.model
     o = model.geom("obstacle")
     np.testing.assert_allclose(o.size, [0.08, 0.08, 0.12])  # 16 x 16 x 24 cm
-    np.testing.assert_allclose(o.pos[0] - o.size[0], -HALF_L)  # flush against the LEFT edge
+    # flush against the +X edge (operator's LEFT)
+    np.testing.assert_allclose(o.pos[0] + o.size[0], HALF_L)
     np.testing.assert_allclose(o.pos[2] - o.size[2], TABLE_TOP_Z)  # standing on the table
     np.testing.assert_allclose(HALF_W - (o.pos[1] + o.size[1]), 0.275)  # 27.5 cm from outer edge
     view_y = model.body("view_rail_base").pos[1]
     assert o.pos[1] + o.size[1] < view_y + RAIL_ACROSS[0]  # clear of the camera rail's plate
-    # the gripper carriage never reaches it: 0.65 m of travel ends >5 cm short of its face
+    # the gripper carriage never reaches it: its max +X reach (rail q=0, base X) ends
+    # >5 cm short of the obstacle's face
     grip_x = model.body("grip_rail_base").pos[0]
-    assert (grip_x - 0.65 - 0.098) - (o.pos[0] + o.size[0]) > 0.05
+    assert (o.pos[0] - o.size[0]) - (grip_x + 0.098) > 0.05
 
 
 def test_camera_only_arm_tool_is_collidable(built):
@@ -115,32 +146,37 @@ def test_twin_audit_clean_and_structural_pairs_whitelisted(built, delta):
     assert frozenset(("view_d435_mount", "grip_link5")) in monitored
 
 
-def test_keyframe_rails_at_zero_and_gripper_ready_in_the_channel(built):
-    """Premise of the guardrail scenario ``mavis_v2_rail_sweep`` (-X along the channel)."""
+def test_keyframe_rails_at_rest_and_gripper_ready_in_the_channel(built):
+    """Premise of the guardrail scenario ``mavis_v2_rail_sweep`` (+X along the channel).
+
+    Travel is reversed (yaw +90), so the arms rest at rail q ~ 0.597 (the -X/right
+    end) and the sweep drives the TCP +X in world by DECREASING the rail toward q=0.
+    """
     model, data = built.model, mujoco.MjData(built.model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
     for arm in ("view", "grip"):
-        assert data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] == 0.0
+        assert 0.55 < data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] < 0.62
     sid = model.site("grip_link_tcp").id
     tcp, tool_z = data.site_xpos[sid], data.site_xmat[sid].reshape(3, 3)[:, 2]
     o = model.geom("obstacle")
     assert abs(tcp[1] - o.pos[1]) < o.size[1]  # inside the obstacle's y span
     assert TABLE_TOP_Z + 0.1 < tcp[2] < o.pos[2] + o.size[2]  # below the obstacle top
-    assert tcp[0] > o.pos[0] + o.size[0] + 0.4  # far to the right of it (rail sweep to reach)
+    # far to the operator's right (-X) of it (rail sweep +X to reach)
+    assert tcp[0] < o.pos[0] - o.size[0] - 0.4
     assert tool_z[2] < -0.98  # tool pointing straight down
 
 
 def test_overviews_put_the_obstacle_on_the_image_left(built, desc):
-    """Overview convention: every image is framed so the red obstacle (the -X /
-    empty end) is on the LEFT, matching what the operator sees in the real cell.
-    All three overviews look from the -Y side toward +Y, so image right = +X and
-    the top view has the outer edge (+Y) at the top of the frame."""
+    """Overview convention: every image is framed as the operator sees the cell --
+    the red obstacle (the +X / empty end, operator's LEFT) on the LEFT, the arms on
+    the RIGHT. All three overviews look from the +Y (operator) side toward -Y, so
+    image right = -X and the top view has the near outer edge (+Y) at the bottom."""
     cams = {c["name"]: c for c in desc["cameras"]}
-    assert cams["cam_front"]["pos"] == [0.0, -2.0, 1.9]
-    assert cams["cam_front"]["xyaxes"] == [1, 0, 0, 0, 0.55, 1]
+    assert cams["cam_front"]["pos"] == [0.0, 2.0, 1.9]
+    assert cams["cam_front"]["xyaxes"] == [-1, 0, 0, 0, -0.55, 1]
     assert cams["cam_top"]["pos"] == [0.0, 0.0, 2.6]
-    assert cams["cam_top"]["xyaxes"] == [1, 0, 0, 0, 1, 0]
+    assert cams["cam_top"]["xyaxes"] == [-1, 0, 0, 0, -1, 0]
     model, data = built.model, mujoco.MjData(built.model)
     mujoco.mj_forward(model, data)
     table = model.geom("table")
@@ -150,28 +186,28 @@ def test_overviews_put_the_obstacle_on_the_image_left(built, desc):
         cid = model.camera(name).id
         rot = data.cam_xmat[cid].reshape(3, 3)  # columns x, y, z; right-handed: x cross y = z
         np.testing.assert_allclose(np.cross(rot[:, 0], rot[:, 1]), rot[:, 2], atol=1e-6)
-        assert rot[0, 0] > 0.99  # image right = +X
+        assert rot[0, 0] < -0.99  # image right = -X
         look, to_table = -rot[:, 2], table_top - data.cam_xpos[cid]
         assert look @ to_table / np.linalg.norm(to_table) > 0.99  # aimed at the table centre
         # the obstacle projects LEFT of the table centre along the image-right axis
         assert (obstacle - table.pos) @ rot[:, 0] < 0
     top = data.cam_xmat[model.camera("cam_top").id].reshape(3, 3)
-    np.testing.assert_allclose(top[:, 1], [0, 1, 0], atol=1e-9)  # image up = +Y (outer edge high)
+    np.testing.assert_allclose(top[:, 1], [0, -1, 0], atol=1e-9)  # image up = -Y (near +Y edge low)
 
 
 def test_view_puts_the_obstacle_on_the_left(built, desc):
-    """``view`` -> <visual><global azimuth elevation>: azimuth +90 puts MuJoCo's free
-    camera (runtime ``sim`` stream) at -Y looking +Y, so the obstacle (the -X end)
+    """``view`` -> <visual><global azimuth elevation>: azimuth -90 puts MuJoCo's free
+    camera (runtime ``sim`` stream) at +Y looking -Y, so the obstacle (the +X end)
     is on the LEFT of the image -- the operator's picture. From this side the
-    gripper arm (-Y) renders nearer than the camera-only arm (+Y)."""
-    assert desc["view"] == {"azimuth": 90.0, "elevation": -30.0}
+    camera-only arm (+Y) renders nearer than the gripper arm (-Y)."""
+    assert desc["view"] == {"azimuth": -90.0, "elevation": -30.0}
     g = built.model.vis.global_
-    assert (g.azimuth, g.elevation) == (90.0, -30.0)
+    assert (g.azimuth, g.elevation) == (-90.0, -30.0)
     az, el = np.radians(g.azimuth), np.radians(g.elevation)
     # mjv free camera: forward from azimuth/elevation, camera = lookat - distance * forward
     forward = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
-    np.testing.assert_allclose(forward, [0.0, np.cos(el), np.sin(el)], atol=1e-12)
-    assert forward[1] > 0  # looking toward +Y from the -Y side (camera = lookat - d * forward)
+    np.testing.assert_allclose(forward, [0.0, -np.cos(el), np.sin(el)], atol=1e-12)
+    assert forward[1] < 0  # looking toward -Y from the +Y side (camera = lookat - d * forward)
     view_y = built.model.body("view_rail_base").pos[1]
     grip_y = built.model.body("grip_rail_base").pos[1]
-    assert (grip_y * forward[1]) < (view_y * forward[1])  # smaller depth along forward = nearer
+    assert (view_y * forward[1]) < (grip_y * forward[1])  # smaller depth along forward = nearer

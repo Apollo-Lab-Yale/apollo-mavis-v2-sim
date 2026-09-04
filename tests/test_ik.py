@@ -162,3 +162,42 @@ def test_far_qseed_triggers_reseed(solver):
     q_seed[0] += 0.5  # far from the warm state -> external motion
     r = solver.solve("arm0", Pose(pos0, quat0), q_seed)
     assert np.max(np.abs(r.q - q_seed)) < 0.1  # solved FROM the seed
+
+
+# -- lock_rail: the servo path never moves the rail (04-runtime §6 "Rail", 2026-09-03) ----------
+@pytest.fixture()
+def locked_solver() -> MinkIKSolver:
+    return MinkIKSolver(
+        REGISTRY.build("single_rail"), IKParams(lock_rail=True), collision_pairs=None
+    )
+
+
+def test_lock_rail_servo_leaves_rail_untouched_and_tracks_with_joints(locked_solver):
+    pos0, quat0 = _tcp(locked_solver)
+    target = Pose(pos0 + [0.0, 0.03, 0.0], quat0)  # along the rail axis
+    for _ in range(300):
+        r = locked_solver.solve("arm0", target, None)
+    assert r.pos_err_m < 5e-4
+    assert r.q[7] == pytest.approx(HOME[7], abs=1e-12)  # exactly pinned
+
+
+def test_lock_rail_adopts_seed_rail_without_reset(locked_solver):
+    pos0, quat0 = _tcp(locked_solver)
+    target = Pose(pos0 + [0.0, 0.03, 0.0], quat0)
+    for _ in range(50):
+        r = locked_solver.solve("arm0", target, None)
+    assert np.any(locked_solver._dq_hist["arm0"][0] != 0.0)
+    seed = r.q.copy()
+    seed[7] += 0.20  # rail moved externally by 20 cm (> reseed_threshold)
+    r2 = locked_solver.solve("arm0", target, seed)
+    assert r2.q[7] == pytest.approx(seed[7], abs=1e-12)  # rail followed the seed
+    assert np.any(locked_solver._dq_hist["arm0"][1] != 0.0)  # history kept: no reset
+    assert not r2.diverged
+
+
+def test_lock_rail_one_shot_still_places_rail(locked_solver):
+    pos0, quat0 = _tcp(locked_solver)
+    r = locked_solver.solve_to_convergence("arm0", Pose(pos0 + [0.0, 0.45, 0.05], quat0), HOME)
+    assert r.pos_err_m < 1e-3 and r.rot_err_rad < 0.01
+    assert r.q[7] > HOME[7] + 0.05
+    assert np.allclose(locked_solver._q_warm["arm0"], HOME)

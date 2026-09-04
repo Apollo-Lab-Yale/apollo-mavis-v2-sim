@@ -4,8 +4,10 @@ Implements core's ``IKSolver`` Protocol with mink 1.3.0 (`qpsolvers` + daqp):
 one ``mink.Configuration`` shared by all arms of the workcell (the model is
 typically the digital twin's — the Configuration owns its own ``MjData``),
 per-arm ``FrameTask`` on the ``<arm>_link_tcp`` site + one ``PostureTask``
-with per-DoF costs (rail expensive; non-active arms pinned at 1e4 toward
-their measured configuration and their Δq slice zeroed before integration)
+with per-DoF costs (rail expensive, or pinned outright with ``lock_rail`` —
+then the servo path never moves it and adopts the rail slot from the seed;
+non-active arms pinned at 1e4 toward their measured configuration and their
+Δq slice zeroed before integration)
 + ``ConfigurationLimit`` + ``VelocityLimit`` + a row-capped
 ``CollisionAvoidanceLimit`` (omitted in plain sim mode — pass
 ``collision_pairs=None``).
@@ -72,6 +74,12 @@ class IKParams:
     pos_reject_m: float = 0.02
     rot_reject_rad: float = 0.35
     reseed_threshold: float = 0.05  # max|q_seed - q_warm| that forces a reset
+    # Servo path (``solve``) only: exclude the rail from the differential QP.
+    # The rail slot becomes an INPUT (rail keys / controller trackpad), adopted
+    # from ``q_seed`` every tick and never moved to reach a target (04-runtime
+    # §6 "Rail", ``control.rail_in_ik: false``). One-shot far targets
+    # (``solve_to_convergence``) still place the rail.
+    lock_rail: bool = False
 
 
 def default_collision_pairs(
@@ -368,18 +376,22 @@ class MinkIKSolver:
         t0 = time.perf_counter()
         p = self.params
         a = self.scene.addressing[arm_id]
+        locked = p.lock_rail and a.has_rail and not self._one_shot
         if q_seed is not None:
             q_seed = np.asarray(q_seed, dtype=np.float64)
+            if locked:  # the rail is an input, not a decision: follow it, no reset
+                self._q_warm[arm_id][N_ARM_JOINTS] = q_seed[N_ARM_JOINTS]
             if np.max(np.abs(q_seed - self._q_warm[arm_id])) > p.reseed_threshold:
                 self.reset(arm_id, q_seed)  # external motion / recovery / clamp
         self.configuration.update(self._compose_qpos(arm_id))
+        active = a.dof_adr[:N_ARM_JOINTS] if locked else a.dof_adr
 
         task = self._tasks[arm_id]
         task.set_orientation_cost(self._update_ecaa(arm_id))
         task.set_target(_pose_to_se3(target))
         self._set_posture(arm_id, one_shot=self._one_shot)
         dq1, dq2 = self._dq_hist[arm_id]
-        self._smooth.set_active(a.dof_adr, dq1, dq2)
+        self._smooth.set_active(active, dq1, dq2)
         tasks = [task, self._posture, self._smooth]
 
         v = self._solve_qp(tasks, arm_id)
@@ -394,8 +406,8 @@ class MinkIKSolver:
                 solve_time_s=time.perf_counter() - t0,
             )
         mask = np.zeros(self.model.nv)
-        mask[a.dof_adr] = 1.0
-        v_masked = v * mask  # pin every non-active dof exactly
+        mask[active] = 1.0
+        v_masked = v * mask  # pin every non-active dof (and a locked rail) exactly
         self.configuration.integrate_inplace(v_masked, p.dt)
 
         err = task.compute_error(self.configuration)
@@ -444,9 +456,13 @@ class MinkIKSolver:
         cost = np.full(self.model.nv, _PIN_COST)
         cost[a.dof_adr[:N_ARM_JOINTS]] = self.params.posture_cost_joint
         if a.has_rail:
-            cost[a.dof_adr[N_ARM_JOINTS]] = (
-                self.params.posture_cost_joint if one_shot else self.params.posture_cost_rail
-            )
+            if one_shot:
+                rail_cost = self.params.posture_cost_joint
+            elif self.params.lock_rail:
+                rail_cost = _PIN_COST  # rail excluded from the servo solve
+            else:
+                rail_cost = self.params.posture_cost_rail
+            cost[a.dof_adr[N_ARM_JOINTS]] = rail_cost
         self._posture.set_cost(cost)
         self._posture.set_target_from_configuration(self.configuration)
 

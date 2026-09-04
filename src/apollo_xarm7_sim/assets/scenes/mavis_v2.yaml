@@ -2,46 +2,65 @@
 # scene for the real hardware AND a sim scenario. Generated from the measurements
 # below (docs/design/03-sim.md §4.3 has the arithmetic); edit the numbers there.
 #
-# World frame (the user's definitions): z-up, origin on the FLOOR under the table
-# centre. +Y points to the OUTER edge = the long edge the arms' end effectors face
-# at rail zero (the camera rail is next to it). Standing on the inner side and
-# FACING the outer edge, +X is to the RIGHT: the end where both arms sit at rail
-# zero and where the obstacle is.
+# World frame (defined from the OPERATOR, who is the authority on left/right):
+# z-up, origin on the FLOOR under the table centre. +Y points to the OUTER edge =
+# the long edge the operator stands at (the camera rail is next to it, so the
+# camera-only arm is the one NEAREST the operator). The operator faces the arms
+# (−Y). Facing that way, the operator's RIGHT hand points to −X and LEFT to +X:
+#   - both arms REST at the operator's RIGHT (−X end, flush with the table edge)
+#     — "the arms are against the rightmost edge";
+#   - the untouchable obstacle stands at the operator's LEFT (+X end) — "the
+#     obstacle is against the leftmost edge".
+# Rail orientation (base_quat yaw +90): each rail is turned end-for-end so its thin
+# cable-tray plate faces the table interior (−Y, AWAY from the operator) and the arm
+# base rides the OUTER (+Y) side — the real cell. The linear rail is a chiral part,
+# so "plate away from the operator" is a genuine 180° rotation about z (NOT a mirror,
+# which would change the mesh handedness); the price is that travel is reversed:
+# rail zero (q=0) now sits at the operator's LEFT (+X) and a qpos INCREASE drives the
+# carriage toward −X, so the arm's rest pose is at rail q ≈ 0.597 (the −X/right end),
+# not q=0. The 180° base flip is undone in the keyframe by joint 1 += π, so the arms
+# reach the exact same world workspace as before (verified collision-free in-sim).
+# NOTE: an earlier version encoded this cell mirrored in X from an inner-side
+# viewpoint; a later fix (yaw −90) put the arms/obstacle on the operator-correct
+# sides but left the plate facing the operator. Corrected 2026-09-03 by turning each
+# rail 180° (yaw +90) — plate now faces away, layout unchanged (camera-only arm
+# nearest, arms on the image RIGHT, obstacle on the image LEFT).
 #
 # Table: 1.215 x 0.62 x 0.03 m, top surface at z = 0.735 m.
 # Rails: two identical rails parallel to X, feet on the table top (arm mounting
 #   plane z = 0.735 + 0.107188 = 0.842188, mavis rail mesh), mounted the SAME way:
-#   arm base +X toward the outer edge (+Y), thin cable-tray plate toward the table
-#   interior (-Y), zero (q=0) at the right end, travel toward -X (base_quat yaw +90).
+#   arm base rides the OUTER (+Y) side, thin cable-tray plate toward the table
+#   interior (−Y, away from the operator); q=0 at the operator's LEFT end (+X),
+#   qpos increases toward −X (arm rest at q ≈ 0.597, the −X/right end).
 #   camera-only arm 'view': rail outer edge 2.6 cm from the outer edge -> y0 = 0.2116
 #   gripper arm 'grip': 39.5 cm inward (base lines)                   -> y0 = -0.1834
 #     its plate edge is 0.7 cm from the inner edge; channel between the rail
 #     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
-#   rail zero end FLUSH with the table's right edge (user) -> base centre x0 = 0.3599
-#     (mavis mesh: 0.2476 m from the base centre to the zero end); the carriage's
-#     right edge is then 15.0 cm from the right edge (user: 'arm ~14 cm'),
-#     the base cylinder 18.5 cm. Rail left end at x = -0.4851 (12.2 cm
-#     from the left edge, mesh length 1.0926 m — unverified).
+#   rail's −X (arm-rest) end FLUSH with the table's −X edge (operator's right) at
+#     x = -0.6075; base centre x0 = +0.2375 (mavis mesh: 0.2476 m from the base
+#     centre to the +X/zero end at +0.4851, 12.2 cm from the +X edge; mesh length
+#     1.0926 m — unverified). The carriage's near edge is 15.0 cm from the −X edge
+#     at rest (user: 'arm ~14 cm'), the base cylinder 18.5 cm.
 # Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
-#   the LEFT table edge (the empty end), in the channel between the rails; near face
-#   27.5 cm in from the outer edge as measured -> y in [-0.1250, 0.0350]. Its inner
-#   face is 1.4 cm past the mesh gripper-rail inner edge and the mesh rail
-#   reaches 3.8 cm into the obstacle's x-span: a static corner overlap (rail
-#   mesh length/width vs the real track — phase-09 calibration; no effect on the twin
-#   or physics, both are welded to the world).
-# Keyframe (MJCF order, rail FIRST): rails at zero; 'grip' elbow-up ready pose in the
-#   channel, tool down, TCP 4.5 cm below the obstacle top (guardrail scenario
-#   'mavis_v2_rail_sweep' drives it -X along the channel into the obstacle's face); 'view' turned round
-#   (j1 ~ pi), camera 1.4 m up over the channel left of the gripper, looking down-right.
-# Cameras / view (operator convention): every overview is framed so the red
-#   obstacle (the -X / empty end) is on the LEFT of the image, matching what the
-#   operator sees in the real cell. All three look from the -Y side toward +Y:
-#   cam_front sits at -Y looking +Y and down (image right = +X), cam_top looks
-#   straight down with image up = +Y (image right = +X), and `view` sets the
-#   MuJoCo free camera (runtime "sim" stream) to azimuth +90 = at -Y looking +Y.
-#   NOTE: from this side the gripper arm (-Y) is nearest; the camera-only arm
-#   (+Y) is far. The free camera renders the model statistic centre; the scene
-#   cameras are pinned by tests/test_mavis_v2.py.
+#   the +X table edge (operator's LEFT, the empty end), in the channel between the
+#   rails; near face 27.5 cm in from the outer edge as measured -> y in [-0.1250,
+#   0.0350]. Its inner face is 1.4 cm past the mesh gripper-rail inner edge and the
+#   mesh rail reaches 3.8 cm into the obstacle's x-span: a static corner overlap
+#   (rail mesh length/width vs the real track — phase-09 calibration; no effect on
+#   the twin or physics, both are welded to the world).
+# Keyframe (MJCF order, rail FIRST): rails at rest q ≈ 0.597 (the −X/right end, arm
+#   against the rightmost edge); 'grip' elbow-up ready pose in the channel, tool down,
+#   TCP 4.5 cm below the obstacle top (guardrail scenario 'mavis_v2_rail_sweep' drives
+#   the TCP +X in world along the channel into the obstacle's face — the IK carries
+#   the rail toward −X/q=0); 'view' parked ~1.3 m up over the workspace, D435 down.
+# Cameras / view (operator convention): every overview is framed as the OPERATOR
+#   sees the cell — the red obstacle (the +X / empty end) on the LEFT of the image,
+#   the arms (at rest, −X) on the RIGHT, the camera-only arm nearest. All three look
+#   from the +Y (operator) side toward −Y: cam_front sits at +Y looking −Y and down
+#   (image right = −X), cam_top looks straight down with image up = −Y (near +Y edge
+#   at the bottom, image right = −X), and `view` sets the MuJoCo free camera (runtime
+#   "sim" stream) to azimuth −90 = at +Y looking −Y. The free camera renders the
+#   model statistic centre; the scene cameras are pinned by tests/test_mavis_v2.py.
 id: mavis_v2
 description: MAVIS v2 cell - camera arm on the outer rail + gripper arm 39.5 cm inward, 1.215 x 0.62 table,
   obstacle at the left end of the channel
@@ -49,25 +68,25 @@ suitable_for: [sim, twin]
 arms:
 - id: view
   model: xarm7_on_rail
-  base_pos: [0.3599, 0.2116, 0.842188]
+  base_pos: [0.2375, 0.2116, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: none
   wrist_cam: true
 - id: grip
   model: xarm7_on_rail
-  base_pos: [0.3599, -0.1834, 0.842188]
+  base_pos: [0.2375, -0.1834, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true
-view: {azimuth: 90.0, elevation: -30.0}
+view: {azimuth: -90.0, elevation: -30.0}
 cameras:
 - name: cam_front
-  pos: [0.0, -2.0, 1.9]
-  xyaxes: [1, 0, 0, 0, 0.55, 1]
+  pos: [0.0, 2.0, 1.9]
+  xyaxes: [-1, 0, 0, 0, -0.55, 1]
   fovy: 45
 - name: cam_top
   pos: [0.0, 0.0, 2.6]
-  xyaxes: [1, 0, 0, 0, 1, 0]
+  xyaxes: [-1, 0, 0, 0, -1, 0]
   fovy: 42
 environment:
 - name: table
@@ -78,14 +97,14 @@ environment:
 - name: obstacle
   type: box
   size: [0.08, 0.08, 0.12]
-  pos: [-0.5275, -0.045, 0.855]
+  pos: [0.5275, -0.045, 0.855]
   rgba: [0.75, 0.22, 0.2, 1.0]
 allowed_pairs:
 - [view_rail_platform, table]
 - [grip_rail_platform, table]
 keyframe:
   view:
-    q: [0.0, 3.0012, -1.3513, 0.0579, 0.7548, -0.5641, 1.7282, -0.3698]
+    q: [0.5974, 4.7376, -1.6648, -0.0307, 0.6091, -0.0409, 1.917, 1.5726]
   grip:
-    q: [0.0, 0.9644, -0.3909, 0.0779, 0.353, 0.044, 0.7442, 0.0528]
+    q: [0.5974, 4.6356, -0.4748, 0.6498, 0.3665, 0.3977, 0.7955, -0.3882]
     gripper: 1.0

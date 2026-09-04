@@ -225,18 +225,20 @@ SCENARIOS: dict[str, GuardrailScenario] = {
             graze_twist=_tw(0.0, 0.10, 0.02, 0.0, 0.0, 0.0),
             graze_ticks=1100,
         ),
-        # Lab cell (mavis_v2): the untouchable obstacle stands at the LEFT end
-        # of the channel; the gripper arm starts at rail zero (right end) with
-        # the TCP below the obstacle top and is driven -X along the channel —
-        # the IK carries the rail along — until its face is reached. Graze:
-        # same sweep while rising 3 cm/s, clearing the top by ~8 cm.
+        # Lab cell (mavis_v2): the untouchable obstacle stands at the +X end
+        # of the channel (operator's left); the gripper arm rests at the −X end
+        # (operator's right, rail q ~ 0.597 — travel is reversed by the yaw +90
+        # remount that turns each rail's plate to −Y) with the TCP below the
+        # obstacle top and is driven +X in world along the channel — the IK carries
+        # the rail toward q=0 — until its face is reached. Graze: same sweep while
+        # rising 3 cm/s, clearing the top by ~8 cm.
         GuardrailScenario(
             scenario_id="mavis_v2_rail_sweep",
             scene_id="mavis_v2",
             driven_arm="grip",
-            twist=_tw(-0.12, 0.0, 0.0, 0.0, 0.0, 0.0),
+            twist=_tw(0.12, 0.0, 0.0, 0.0, 0.0, 0.0),
             target_pair_prefixes=("grip_", "obstacle"),
-            graze_twist=_tw(-0.12, 0.0, 0.03, 0.0, 0.0, 0.0),
+            graze_twist=_tw(0.12, 0.0, 0.03, 0.0, 0.0, 0.0),
             graze_ticks=520,
         ),
     )
