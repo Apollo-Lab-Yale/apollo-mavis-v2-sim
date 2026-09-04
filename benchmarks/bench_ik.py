@@ -16,10 +16,10 @@ import sys
 import time
 
 import numpy as np
-from apollo_xarm7_core import Pose, se3
+from apollo_mavis_v2_core import Pose, se3
 
-from apollo_xarm7_sim import REGISTRY
-from apollo_xarm7_sim.ik import IKParams, MinkIKSolver, default_collision_pairs
+from apollo_mavis_v2_sim import REGISTRY
+from apollo_mavis_v2_sim.ik import IKParams, MinkIKSolver, default_collision_pairs
 
 SERVO_MEAN_THRESHOLD_MS = 0.5
 SERVO_TRACK_THRESHOLD_MM = 0.1

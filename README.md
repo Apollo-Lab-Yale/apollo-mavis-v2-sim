@@ -1,6 +1,8 @@
-# apollo-xarm7-sim
+# apollo-mavis-v2-sim
 
-MuJoCo simulation workcell for the apollo-xarm7 stack. Implements the core
+MuJoCo simulation workcell for the apollo-mavis-v2 stack — the digital twin of
+the MAVIS v2 cell (two xArm7 arms on linear tracks: grip arm with gripper + wrist
+camera, view arm with wrist camera only; scene `mavis_v2`). Implements the core
 interfaces (`WorkcellInterface`, `ArmInterface`, `CameraInterface`) over a
 scene composed at runtime from vendored `mujoco_menagerie` assets, so the
 runtime treats sim exactly like hardware.
@@ -24,7 +26,7 @@ MUJOCO_GL=egl uv run pytest      # + EGL rendering tests
 MUJOCO_GL=egl uv run python benchmarks/bench_step_render.py
 uv run python benchmarks/bench_ik.py
 uv run python benchmarks/bench_twin.py
-uv run python -m apollo_xarm7_sim.tools.guardrail_check --all   # safety CI
+uv run python -m apollo_mavis_v2_sim.tools.guardrail_check --all   # safety CI
 ```
 
 `MUJOCO_GL=egl` must be exported **before** the process imports mujoco's
@@ -34,14 +36,14 @@ runtime entrypoint (or your shell) is responsible.
 ## Scenes
 
 ```python
-from apollo_xarm7_sim.scenes.registry import REGISTRY
+from apollo_mavis_v2_sim.scenes.registry import REGISTRY
 built = REGISTRY.build("triple_rail_row")
 print(built.model.nq, built.meta.arm_ids)
 ```
 
-Scene descriptors live in `src/apollo_xarm7_sim/assets/scenes/*.yaml`; the
+Scene descriptors live in `src/apollo_mavis_v2_sim/assets/scenes/*.yaml`; the
 composed `spec.to_xml()` is persisted with every episode for replay. After
-adding or editing a scene run `uv run python -m apollo_xarm7_sim.tools.gen_asset_manifest`
+adding or editing a scene run `uv run python -m apollo_mavis_v2_sim.tools.gen_asset_manifest`
 (scene YAMLs are hashed into `ASSET_MANIFEST.json`).
 
 | scene | arms | notes |

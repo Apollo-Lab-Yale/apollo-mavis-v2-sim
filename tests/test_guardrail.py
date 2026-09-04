@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 
-from apollo_xarm7_sim.tools.guardrail_check import SCENARIOS, main
+from apollo_mavis_v2_sim.tools.guardrail_check import SCENARIOS, main
 
 
 def test_scenario_table_is_complete():

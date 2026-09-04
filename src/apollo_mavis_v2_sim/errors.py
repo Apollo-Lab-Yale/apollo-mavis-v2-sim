@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apollo_xarm7_core import ApolloError
+from apollo_mavis_v2_core import ApolloError
 
 
 class SceneError(ApolloError):
@@ -28,7 +28,7 @@ class TwinAuditError(ApolloError):
 class IKUnreachableError(ApolloError):
     """``solve_to_convergence`` failed from every restart seed.
 
-    Carries the best (non-converged) :class:`~apollo_xarm7_core.IKResult`.
+    Carries the best (non-converged) :class:`~apollo_mavis_v2_core.IKResult`.
     """
 
     def __init__(self, best_result) -> None:

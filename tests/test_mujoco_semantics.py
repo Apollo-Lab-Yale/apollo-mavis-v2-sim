@@ -13,7 +13,7 @@ import mujoco
 import numpy as np
 import pytest
 
-from apollo_xarm7_sim.assets import asset_path
+from apollo_mavis_v2_sim.assets import asset_path
 
 _TWO_SPHERES = """
 <mujoco>

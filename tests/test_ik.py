@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from apollo_xarm7_core import IKSolver, Pose, se3
+from apollo_mavis_v2_core import IKSolver, Pose, se3
 
-from apollo_xarm7_sim import (
+from apollo_mavis_v2_sim import (
     REGISTRY,
     DigitalTwin,
     IKParams,

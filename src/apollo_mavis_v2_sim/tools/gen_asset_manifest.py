@@ -4,7 +4,7 @@ Recorded episodes persist the composed scene XML plus this manifest's
 hashes instead of copying STLs — replay verifies the asset set matches
 (design 03-sim §5). Run after any asset change:
 
-    uv run python -m apollo_xarm7_sim.tools.gen_asset_manifest
+    uv run python -m apollo_mavis_v2_sim.tools.gen_asset_manifest
 """
 
 from __future__ import annotations

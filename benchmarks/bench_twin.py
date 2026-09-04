@@ -18,8 +18,8 @@ import time
 import mujoco
 import numpy as np
 
-from apollo_xarm7_sim import REGISTRY
-from apollo_xarm7_sim.twin import DigitalTwin
+from apollo_mavis_v2_sim import REGISTRY
+from apollo_mavis_v2_sim.twin import DigitalTwin
 
 CHECK_THRESHOLD_MS = 1.0
 N_CHECK = 2000

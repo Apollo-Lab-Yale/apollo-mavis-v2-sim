@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 import mink
 import mujoco
 import numpy as np
-from apollo_xarm7_core import ArmState, IKResult, Pose
+from apollo_mavis_v2_core import ArmState, IKResult, Pose
 from mink.limits.collision_avoidance_limit import compute_contact_normal_jacobian
 from mink.limits.limit import Constraint
 from mink.tasks.task import Objective

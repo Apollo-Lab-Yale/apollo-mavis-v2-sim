@@ -7,7 +7,7 @@ reference implementation runtime's phase-05 gate must match), and IK
 collision-avoidance rows. Headless, virtual-tick paced (``step_virtual``,
 no sleeps), fixed seeds; exit 0 = all assertions pass.
 
-Run:  uv run python -m apollo_xarm7_sim.tools.guardrail_check --all
+Run:  uv run python -m apollo_mavis_v2_sim.tools.guardrail_check --all
                                                     [--no-ik-avoidance]
 
 Scenarios: ``env_table_descend`` / ``env_pedestal_sweep`` (arm↔environment),
@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 
 import mujoco
 import numpy as np
-from apollo_xarm7_core import (
+from apollo_mavis_v2_core import (
     ArmConfig,
     CollisionEvent,
     CollisionReport,
@@ -37,7 +37,7 @@ from apollo_xarm7_core import (
     WorkcellConfig,
     se3,
 )
-from apollo_xarm7_core.schemas import PoseModel
+from apollo_mavis_v2_core.schemas import PoseModel
 
 from ..ik import IKParams, MinkIKSolver, default_collision_pairs
 from ..scenes import REGISTRY

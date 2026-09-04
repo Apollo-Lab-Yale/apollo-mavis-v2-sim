@@ -6,14 +6,14 @@ in an `UPSTREAM` file next to each vendored directory:
 
 | Directory | Upstream | License |
 |---|---|---|
-| `src/apollo_xarm7_sim/assets/ufactory_xarm7/` | google-deepmind/mujoco_menagerie @ `da76818e269b82289eba39808e2fb91d679d6994` | BSD-3-Clause (UFACTORY Inc.) |
-| `src/apollo_xarm7_sim/assets/rail/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
-| `src/apollo_xarm7_sim/assets/cameras/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
+| `src/apollo_mavis_v2_sim/assets/ufactory_xarm7/` | google-deepmind/mujoco_menagerie @ `da76818e269b82289eba39808e2fb91d679d6994` | BSD-3-Clause (UFACTORY Inc.) |
+| `src/apollo_mavis_v2_sim/assets/rail/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
+| `src/apollo_mavis_v2_sim/assets/cameras/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
 
-`ASSET_MANIFEST.json` (in `src/apollo_xarm7_sim/assets/`) records the sha256
+`ASSET_MANIFEST.json` (in `src/apollo_mavis_v2_sim/assets/`) records the sha256
 of every vendored asset so recorded episodes can be replayed against a
 verified asset set. Regenerate with
-`uv run python -m apollo_xarm7_sim.tools.gen_asset_manifest`.
+`uv run python -m apollo_mavis_v2_sim.tools.gen_asset_manifest`.
 
 ## BSD-3-Clause text (UFACTORY Inc.)
 

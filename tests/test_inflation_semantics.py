@@ -13,8 +13,8 @@ import mujoco
 import numpy as np
 import pytest
 
-from apollo_xarm7_sim import REGISTRY
-from apollo_xarm7_sim.twin import apply_inflation
+from apollo_mavis_v2_sim import REGISTRY
+from apollo_mavis_v2_sim.twin import apply_inflation
 
 _TWO_SPHERES = """
 <mujoco>

@@ -6,7 +6,7 @@ import mujoco
 import numpy as np
 import pytest
 
-from apollo_xarm7_sim.gripper import (
+from apollo_mavis_v2_sim.gripper import (
     ctrl_to_open_frac,
     driver_q_to_open_frac,
     open_frac_to_ctrl,

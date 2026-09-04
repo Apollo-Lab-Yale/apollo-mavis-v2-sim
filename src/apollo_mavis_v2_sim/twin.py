@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import mujoco
 import numpy as np
-from apollo_xarm7_core import (
+from apollo_mavis_v2_core import (
     ArmState,
     CameraFrame,
     CollisionEvent,

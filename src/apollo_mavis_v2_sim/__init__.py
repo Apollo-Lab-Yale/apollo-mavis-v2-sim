@@ -1,4 +1,4 @@
-"""apollo-xarm7-sim: MuJoCo simulation workcell for the apollo-xarm7 stack.
+"""apollo-mavis-v2-sim: MuJoCo simulation workcell for the apollo-mavis-v2 stack.
 
 Public API re-exports (design 03-sim §1). This module NEVER touches
 environment variables: ``MUJOCO_GL=egl`` must be exported by the runtime

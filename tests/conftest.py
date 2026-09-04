@@ -12,10 +12,10 @@ import os
 os.environ.setdefault("MUJOCO_GL", "egl")  # noqa: E402 - must precede mujoco GL init
 
 import pytest
-from apollo_xarm7_core import ArmConfig, WorkcellConfig
-from apollo_xarm7_core.schemas import PoseModel
+from apollo_mavis_v2_core import ArmConfig, WorkcellConfig
+from apollo_mavis_v2_core.schemas import PoseModel
 
-from apollo_xarm7_sim import REGISTRY, BuiltScene
+from apollo_mavis_v2_sim import REGISTRY, BuiltScene
 
 
 def make_config(scene_id: str, arm_ids: list[str]) -> WorkcellConfig:

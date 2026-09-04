@@ -18,9 +18,9 @@ import numpy as np
 import pytest
 import yaml
 
-from apollo_xarm7_sim import REGISTRY, DigitalTwin
-from apollo_xarm7_sim.assets import asset_path
-from apollo_xarm7_sim.twin import geom_labels
+from apollo_mavis_v2_sim import REGISTRY, DigitalTwin
+from apollo_mavis_v2_sim.assets import asset_path
+from apollo_mavis_v2_sim.twin import geom_labels
 
 TABLE_TOP_Z, HALF_L, HALF_W = 0.735, 0.6075, 0.31
 RAIL_Z = 0.107188  # rail feet -> arm mounting plane (mavis rail mesh)

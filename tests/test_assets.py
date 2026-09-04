@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from apollo_xarm7_sim.assets import asset_path
-from apollo_xarm7_sim.tools.gen_asset_manifest import MANIFEST_NAME, compute_manifest
+from apollo_mavis_v2_sim.assets import asset_path
+from apollo_mavis_v2_sim.tools.gen_asset_manifest import MANIFEST_NAME, compute_manifest
 
 ARM_STLS = [
     "link_base", "link1", "link2", "link3", "link4", "link5", "link6", "link7",
@@ -46,7 +46,7 @@ def test_asset_manifest_hashes_match():
     manifest = json.loads(asset_path(MANIFEST_NAME).read_text(encoding="utf-8"))
     assert manifest == compute_manifest(), (
         "asset drift: regenerate with "
-        "`uv run python -m apollo_xarm7_sim.tools.gen_asset_manifest`"
+        "`uv run python -m apollo_mavis_v2_sim.tools.gen_asset_manifest`"
     )
     # every vendored binary is covered
     assert "rail/linear_motor_rail.stl" in manifest

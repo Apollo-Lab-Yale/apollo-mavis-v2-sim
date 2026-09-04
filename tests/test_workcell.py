@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 import pytest
-from apollo_xarm7_core import (
+from apollo_mavis_v2_core import (
     ArmInterface,
     CommandError,
     GripperCommand,
@@ -15,8 +15,8 @@ from apollo_xarm7_core import (
 )
 from conftest import make_config
 
-from apollo_xarm7_sim import REGISTRY, SimWorkcell
-from apollo_xarm7_sim.workcell import WORKCELL_FAULT_CODE
+from apollo_mavis_v2_sim import REGISTRY, SimWorkcell
+from apollo_mavis_v2_sim.workcell import WORKCELL_FAULT_CODE
 
 
 @pytest.fixture()
@@ -225,7 +225,7 @@ def test_states_keys_match_arms():
 
 
 def test_config_arm_mismatch_raises():
-    from apollo_xarm7_sim import SceneArmMismatchError
+    from apollo_mavis_v2_sim import SceneArmMismatchError
 
     scene = REGISTRY.build("single_rail")
     with pytest.raises(SceneArmMismatchError):

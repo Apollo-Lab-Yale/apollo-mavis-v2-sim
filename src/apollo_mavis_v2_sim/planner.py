@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import mujoco
 import numpy as np
-from apollo_xarm7_core import PlanRequest, PlanResult
+from apollo_mavis_v2_core import PlanRequest, PlanResult
 
 from .scenes.addressing import N_ARM_JOINTS, Addressing
 

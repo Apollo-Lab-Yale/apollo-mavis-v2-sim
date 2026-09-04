@@ -5,7 +5,7 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
-from apollo_xarm7_sim.scenes.builder import HOME_Q
+from apollo_mavis_v2_sim.scenes.builder import HOME_Q
 
 
 def test_qpos_adr_is_core_order_rail_last(triple_scene):

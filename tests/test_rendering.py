@@ -6,10 +6,10 @@ import time
 
 import numpy as np
 import pytest
-from apollo_xarm7_core import CameraInterface
+from apollo_mavis_v2_core import CameraInterface
 from conftest import make_config
 
-from apollo_xarm7_sim import RenderService, SimCamera, SimWorkcell, StreamSpec
+from apollo_mavis_v2_sim import RenderService, SimCamera, SimWorkcell, StreamSpec
 
 pytestmark = pytest.mark.egl
 

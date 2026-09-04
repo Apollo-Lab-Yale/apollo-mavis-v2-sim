@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 import mujoco
 import numpy as np
-from apollo_xarm7_core import CameraFrame, LatestSlot
+from apollo_mavis_v2_core import CameraFrame, LatestSlot
 
 logger = logging.getLogger(__name__)
 

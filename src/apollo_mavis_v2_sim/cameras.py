@@ -7,7 +7,7 @@ this class owns none.
 
 from __future__ import annotations
 
-from apollo_xarm7_core import CameraFrame, CameraInterface
+from apollo_mavis_v2_core import CameraFrame, CameraInterface
 
 from .rendering import RenderService, StreamSpec
 

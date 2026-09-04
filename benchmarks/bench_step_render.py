@@ -20,7 +20,7 @@ os.environ.setdefault("MUJOCO_GL", "egl")  # before mujoco GL init; harness-owne
 import mujoco  # noqa: E402
 import numpy as np  # noqa: E402
 
-from apollo_xarm7_sim import REGISTRY  # noqa: E402
+from apollo_mavis_v2_sim import REGISTRY  # noqa: E402
 
 STEP_THRESHOLD_US = 100.0
 TICK_THRESHOLD_MS = 0.5

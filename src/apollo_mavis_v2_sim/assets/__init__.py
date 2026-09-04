@@ -9,7 +9,7 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
-_ASSETS = resources.files("apollo_xarm7_sim") / "assets"
+_ASSETS = resources.files("apollo_mavis_v2_sim") / "assets"
 
 
 def asset_path(*parts: str) -> Path:

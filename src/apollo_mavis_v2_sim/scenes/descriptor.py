@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from apollo_xarm7_core import Pose
+from apollo_mavis_v2_core import Pose
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ARM_MODELS = ("xarm7_on_rail", "xarm7_fixed")

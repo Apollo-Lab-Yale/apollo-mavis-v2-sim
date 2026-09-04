@@ -6,10 +6,10 @@ import time
 
 import numpy as np
 import pytest
-from apollo_xarm7_core import PlanRequest
+from apollo_mavis_v2_core import PlanRequest
 
-from apollo_xarm7_sim import REGISTRY, DigitalTwin, PlannerParams, ResetPlanner
-from apollo_xarm7_sim.planner import RAIL_MAX_STEP_M, time_parameterize
+from apollo_mavis_v2_sim import REGISTRY, DigitalTwin, PlannerParams, ResetPlanner
+from apollo_mavis_v2_sim.planner import RAIL_MAX_STEP_M, time_parameterize
 
 HOME_J = [0.0, -0.247, 0.0, 0.909, 0.0, 1.15644, 0.0]
 

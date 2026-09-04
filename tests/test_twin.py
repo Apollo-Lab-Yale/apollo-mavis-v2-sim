@@ -7,11 +7,11 @@ import time
 import mujoco
 import numpy as np
 import pytest
-from apollo_xarm7_core import ArmState, DigitalTwinInterface, GripperState, Pose
+from apollo_mavis_v2_core import ArmState, DigitalTwinInterface, GripperState, Pose
 
-from apollo_xarm7_sim import REGISTRY, DigitalTwin, TwinAuditError
-from apollo_xarm7_sim.scenes.builder import build_scene
-from apollo_xarm7_sim.scenes.descriptor import ArmSpec, EnvironmentSpec, SceneDescriptor
+from apollo_mavis_v2_sim import REGISTRY, DigitalTwin, TwinAuditError
+from apollo_mavis_v2_sim.scenes.builder import build_scene
+from apollo_mavis_v2_sim.scenes.descriptor import ArmSpec, EnvironmentSpec, SceneDescriptor
 
 HOME = np.array([0, -0.247, 0, 0.909, 0, 1.15644, 0, 0.325])
 

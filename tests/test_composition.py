@@ -7,11 +7,11 @@ import warnings
 import mujoco
 import numpy as np
 import pytest
-from apollo_xarm7_core import Pose
+from apollo_mavis_v2_core import Pose
 
-from apollo_xarm7_sim import REGISTRY, SceneArmMismatchError, SceneNotFoundError, SceneOverrides
-from apollo_xarm7_sim.scenes import SceneView, build_scene
-from apollo_xarm7_sim.scenes.builder import HOME_Q, RAIL_HOME_M
+from apollo_mavis_v2_sim import REGISTRY, SceneArmMismatchError, SceneNotFoundError, SceneOverrides
+from apollo_mavis_v2_sim.scenes import SceneView, build_scene
+from apollo_mavis_v2_sim.scenes.builder import HOME_Q, RAIL_HOME_M
 
 ALL_SCENES = ["single_fixed_tabletop", "single_rail", "dual_rail_tabletop",
               "triple_rail_row", "dual_mixed", "mavis_v2"]
@@ -119,8 +119,8 @@ def test_override_geom_inflation():
 
 
 def test_gripper_none_builds_without_gripper():
-    from apollo_xarm7_sim import SceneDescriptor
-    from apollo_xarm7_sim.scenes.builder import build_scene
+    from apollo_mavis_v2_sim import SceneDescriptor
+    from apollo_mavis_v2_sim.scenes.builder import build_scene
 
     desc = SceneDescriptor(
         id="_nogrip",
@@ -151,8 +151,8 @@ def test_wrist_cam_false_removes_camera_and_mount():
 
 
 def test_allowed_pairs_unknown_label_fails_the_build():
-    from apollo_xarm7_sim import SceneCompileError, SceneDescriptor
-    from apollo_xarm7_sim.scenes.builder import build_scene
+    from apollo_mavis_v2_sim import SceneCompileError, SceneDescriptor
+    from apollo_mavis_v2_sim.scenes.builder import build_scene
 
     desc = SceneDescriptor(
         id="_badpair",
@@ -165,8 +165,8 @@ def test_allowed_pairs_unknown_label_fails_the_build():
 
 
 def test_allowed_pairs_of_dropped_arms_are_skipped_by_arm_subset():
-    from apollo_xarm7_sim import SceneDescriptor
-    from apollo_xarm7_sim.scenes.builder import build_scene
+    from apollo_mavis_v2_sim import SceneDescriptor
+    from apollo_mavis_v2_sim.scenes.builder import build_scene
 
     desc = SceneDescriptor(
         id="_subset",
@@ -182,7 +182,7 @@ def test_allowed_pairs_of_dropped_arms_are_skipped_by_arm_subset():
 
 
 def test_arm_id_prefix_of_another_arm_is_rejected():
-    from apollo_xarm7_sim import SceneDescriptor
+    from apollo_mavis_v2_sim import SceneDescriptor
 
     with pytest.raises(ValueError, match="prefix"):
         SceneDescriptor(
