@@ -42,36 +42,59 @@
 #   Manipulation Arm 'grip': 39.5 cm inward (base lines)                -> y0 = -0.1834
 #     its plate edge is 0.7 cm from the inner edge; channel between the rail
 #     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
-#   rail's −X end FLUSH with the table's −X edge (operator's right) at x = -0.6075;
-#     base centre x0 = +0.2375 (mavis mesh: 0.2476 m from the base centre to the
-#     +X/zero end at +0.4851, 12.2 cm from the +X edge; mesh length 1.0926 m —
-#     unverified). At the measured 2026-09-02 rest (q ≈ 0.597) the carriage's near
-#     edge is 15.0 cm from the −X edge (user: 'arm ~14 cm'), the base cylinder 18.5 cm;
-#     at the keyframe's q = 0.65 the mesh carriage edge is 9.7 cm from that edge
-#     (phase-09: confirm the real track's far stop is at that position).
+#   ALONG-TRAVEL ANCHOR, MEASURED 2026-09-05 with both tracks homed (supersedes the
+#     2026-09-02 derivation): the extrusion's +X / TRAVEL-ZERO end is 14.0 cm from the
+#     table's +X edge (x = +0.4675) and 18.5–19 cm from the arm base cylinder's centre
+#     → base centre x0 = +0.2800 (32.75 cm from the +X edge, ±0.25 cm), rail geom
+#     offset y = 0.385093 so base centre → zero end = 0.1875 m.
+#     WAS x0 = +0.2375 with 0.2476 m to the zero end, taken from the mavis reference
+#     mesh (which centres the carriage at mid-travel) and never verified: a 6.0 cm
+#     error that placed BOTH arms 4.25 cm too far from the obstacle end, so every
+#     obstacle-side clearance the twin reported was optimistic by that much.
+#     x0 uses only the SUM of the two readings (14.0 + 18.75 = 32.75 cm from the +X
+#     edge to the base centre), so it does NOT depend on WHICH end feature the tape
+#     touched — the mesh's zero end is a 3.2 cm-square boss protruding 2.0 cm
+#     (x +0.4475→+0.4675), then a 14 cm-wide end plate (3.5 cm), then the 19.2 cm
+#     body. The rail GEOM offset anchors the boss tip at 14.0 cm; if the tape read the
+#     end-plate face instead, the drawn rail belongs 2.0 cm further +X (cosmetic +
+#     collision hull only, x0 unaffected).
+#     Residual mesh errors, NOT fixable without better meshes (documented, harmless):
+#       - rail mesh 1.0926 m vs the real 1.075 m → the drawn rail passes the table's
+#         −X edge by 1.76 cm (the zero end is anchored instead: it has the obstacle);
+#       - carriage mesh: it is 1.0 cm ASYMMETRIC about the base (local y [-0.098,
+#         +0.088] → +X/left edge base+0.098, −X/right edge base−0.088; two doc lines
+#         used 0.098 on both sides and were 1 cm off). At q=0 its +X edge stops 8.95 cm
+#         short of the zero end where the real carriage stops 5–6 cm short → the
+#         monitored carriage↔obstacle gap is ~3.4 cm optimistic;
+#       - at the keyframe's q = 0.65 the mesh carriage's −X edge is 14.95 cm from the
+#         −X table edge (was 10.70 cm before this fix; the old docs said 9.7 cm, itself
+#         1 cm off from the carriage asymmetry).
 # Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
 #   the +X table edge (operator's LEFT, the empty end), in the channel between the
 #   rails; near face 27.5 cm in from the outer edge as measured -> y in [-0.1250,
 #   0.0350]. Its inner face is 1.4 cm past the mesh gripper-rail inner edge and the
-#   mesh rail reaches 3.8 cm into the obstacle's x-span: a static corner overlap
-#   (rail mesh length/width vs the real track — phase-09 calibration; no effect on
-#   the twin or physics, both are welded to the world).
+#   mesh rail reaches 2.0 cm into the obstacle's x-span: a static corner overlap
+#   (rail mesh length/width vs the real track; no effect on the twin or physics,
+#   both are welded to the world so MuJoCo filters the pair — the sweep's tightest
+#   pair is floor↔view_link_base, never this one).
 # Keyframe = the cell's INITIAL STATE (MJCF order, rail FIRST; user decision
 #   2026-09-04): both arms at the xArm7 factory zero posture with joint 1 = π and
 #   joints 2-7 = 0, rails at OPPOSITE ends — grip q = 0.65 (−X, operator's right,
-#   link_base x = −0.4125), view q = 0 (+X, operator's left, link_base x = +0.2375,
-#   its carriage 11.2 cm short of the obstacle's −X face and 9.7 cm outside its y
+#   link_base x = −0.3700), view q = 0 (+X, operator's left, link_base x = +0.2800,
+#   its carriage 6.95 cm short of the obstacle's −X face and 9.7 cm outside its y
 #   span). The xArm7 zero is a FOLDED pose (forearm hanging beside the upper arm, tool
 #   pointing straight down, flange 12.05 cm above the mounting plane and 20.6 cm to
 #   the side); joint 1 = π puts that side at −Y, away from the operator: the gripper
 #   hangs at y ≈ −0.39 (8 cm outside the table's inner edge, finger pads 9.3 cm above
 #   the table plane), the D435 hangs into the channel at y ≈ 0.006 looking down.
 #   Twin audit at δ = 0.008 and 0.025, mic off and on: clean, given the intra-arm
-#   allowed pair link2↔link4 below. Smallest monitored clearances: grip finger pads ↔
-#   table 9.3 cm, link_base ↔ table 10.7 cm, view_d435_mount ↔ grip rail 12.4 cm,
-#   view carriage ↔ obstacle 15.4 cm; with the mic on: mic tip ↔ table 3.8 cm (the
-#   mic points at the table; tip z ≈ 0.773), mic ↔ grip rail 7.7 cm, mic ↔ own link1
-#   12.4 cm, mic ↔ obstacle 17 cm. Gripper open. The guardrail scenarios
+#   allowed pair link2↔link4 below. Smallest monitored clearances (obstacle-side ones
+#   are 4.25 cm tighter since the 2026-09-05 rail-zero measurement above): grip finger
+#   pads ↔ table 9.3 cm, link_base ↔ table 10.7 cm, view flange (link7) ↔ obstacle
+#   11.6 cm, view_d435_mount ↔ grip rail 12.4 cm, view carriage ↔ obstacle 12.4 cm
+#   (was 15.4); with the mic on: mic tip ↔ table 3.8 cm (the mic points at the table;
+#   tip z ≈ 0.773), mic ↔ grip rail 7.7 cm, mic ↔ obstacle 12.75 cm (was 17), mic ↔ own
+#   link1 12.4 cm. Nothing monitored within 9 cm, mic off. Gripper open. The guardrail scenarios
 #   'mavis_v2_rail_sweep[_mic]' no longer start here: they teleport to their own
 #   lowered ready pose (the pre-2026-09-04 keyframe) before sweeping +X along the
 #   channel into the obstacle's face.
@@ -112,14 +135,14 @@ suitable_for: [sim, twin]
 arms:
 - id: view
   model: xarm7_on_rail
-  base_pos: [0.2375, 0.2116, 0.842188]
+  base_pos: [0.28, 0.2116, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: none
   wrist_cam: true
   microphone: false  # hardware twin: true via SceneOverrides.microphones (see header)
 - id: grip
   model: xarm7_on_rail
-  base_pos: [0.2375, -0.1834, 0.842188]
+  base_pos: [0.28, -0.1834, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true

@@ -76,10 +76,18 @@ def _rail_bar_world(model, data, arm):
     return verts @ R.T + data.geom_xpos[g.id]
 
 
-RAIL_BASE_TO_FAR_X = 0.845  # mavis mesh: base centre -> the -X (arm-rest) end
+# Measured on the real cell 2026-09-05 (rail homed): the rail extrusion's TRAVEL-ZERO
+# (+X) end is 18.75 cm from the arm base cylinder's centre, and 14.0 cm from the table's
+# +X edge. The mavis reference model implied 0.2476 m / 12.2 cm and centred the carriage
+# on the mesh at mid-travel -- a 6.0 cm error that put the twin's arms 4.25 cm too far
+# from the obstacle end (03-sim 4.3). The mesh is 1.0926 m against the real 1.075 m, so
+# anchoring the zero end leaves the FAR end 1.76 cm past the table edge.
+RAIL_BASE_TO_ZERO_X = 0.1875  # base centre -> the +X (travel-zero) end -- MEASURED
+RAIL_BASE_TO_FAR_X = 0.905086  # base centre -> the -X end (mesh length, 1.76 cm long)
+RAIL_MESH_FAR_OVERHANG = 0.0176  # how far the drawn rail passes the table's -X edge
 
 
-def test_rails_same_orientation_flush_with_the_operator_right_edge(built):
+def test_rails_same_orientation_anchored_at_the_measured_travel_zero_end(built):
     model, data = built.model, mujoco.MjData(built.model)
     for arm in ("view", "grip"):
         rail_base = model.body(f"{arm}_rail_base")
@@ -103,19 +111,23 @@ def test_rails_same_orientation_flush_with_the_operator_right_edge(built):
         by = model.body(f"{arm}_rail_base").pos[1]
         bar = _rail_bar_world(model, data, arm)
         assert (by - bar[:, 1].min()) > (bar[:, 1].max() - by)  # more overhang toward -Y
-        # each rail's -X end is flush with the table's -X edge
-        np.testing.assert_allclose(bar[:, 0].min(), -HALF_L, atol=1e-3)
-        np.testing.assert_allclose(model.body(f"{arm}_rail_base").pos[0] - RAIL_BASE_TO_FAR_X,
-                                   -HALF_L, atol=1e-3)
-    # x0 was derived from the 2026-09-02 measurement "arm ~14 cm from the edge" with
-    # both arms at rest (rail q ~ 0.597): the mesh carriage's near edge is 15 cm in.
-    # (Not the keyframe any more -- the initial state parks grip at q = 0.65, 9.7 cm.)
+        # ANCHOR (measured 2026-09-05, carriage homed): the +X / travel-zero end of the
+        # extrusion is 14.0 cm from the table's +X edge and 18.75 cm from the base centre
+        x0 = model.body(f"{arm}_rail_base").pos[0]
+        np.testing.assert_allclose(HALF_L - bar[:, 0].max(), 0.140, atol=1e-3)
+        np.testing.assert_allclose(bar[:, 0].max() - x0, RAIL_BASE_TO_ZERO_X, atol=1e-3)
+        # the mesh is 1.76 cm longer than the real track, so the FAR end passes the
+        # table's -X edge by that much (the zero end is the one that matters: obstacle)
+        np.testing.assert_allclose(bar[:, 0].min(), -HALF_L - RAIL_MESH_FAR_OVERHANG, atol=1e-3)
+        np.testing.assert_allclose(x0 - RAIL_BASE_TO_FAR_X, bar[:, 0].min(), atol=1e-3)
+    # the arm base centre at the homed carriage: 32.75 cm from the table's +X edge
+    # (measured 14.0 + 18.75; the operator read 18.5-19 cm to the base cylinder)
     for arm in ("view", "grip"):
         mujoco.mj_resetDataKeyframe(model, data, 0)
-        data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] = 0.5974
+        data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] = 0.0
         mujoco.mj_kinematics(model, data)
         lb = data.xpos[model.body(f"{arm}_link_base").id]
-        assert 0.13 <= (lb[0] - 0.098) - (-HALF_L) <= 0.16
+        np.testing.assert_allclose(HALF_L - lb[0], 0.3275, atol=2.5e-3)  # +-0.25 cm spread
 
 
 def test_rail_offsets_from_the_outer_edge(desc):
@@ -201,9 +213,11 @@ def test_keyframe_is_the_initial_state(built, desc):
     np.testing.assert_allclose(view_base[0], x0)  # +0.2375: operator's left
     assert grip_base[0] < 0 < view_base[0]
     o = model.geom("obstacle")
-    # the Perception Arm's carriage stops short of the obstacle: 11.2 cm in x and
-    # 9.7 cm outside its y span (carriage across-extent +Y of the base line)
-    assert (o.pos[0] - o.size[0]) - (view_base[0] + 0.098) == pytest.approx(0.112, abs=1e-3)
+    # the Perception Arm's carriage stops short of the obstacle: 6.95 cm in x and
+    # 9.7 cm outside its y span (carriage across-extent +Y of the base line). Was
+    # 11.2 cm before the 2026-09-05 rail-zero measurement moved both arms 4.25 cm
+    # toward this end -- the twin used to over-state this gap (03-sim 4.3).
+    assert (o.pos[0] - o.size[0]) - (view_base[0] + 0.098) == pytest.approx(0.0695, abs=1e-3)
     assert (view_base[1] + CARRIAGE_ACROSS[0]) - (o.pos[1] + o.size[1]) > 0.09
     for arm in ("view", "grip"):
         sid = model.site(f"{arm}_link_tcp").id
@@ -233,7 +247,10 @@ def test_initial_state_clearances(delta):
     assert twin.pair_distance(("grip_left_finger", "table"), None, 0.5) > 0.09
     assert twin.pair_distance(("grip_link_base", "table"), None, 0.5) > 0.10
     assert twin.pair_distance(("view_d435_mount", "grip_rail_base"), None, 0.5) > 0.12
-    assert twin.pair_distance(("view_rail_platform", "obstacle"), None, 0.5) > 0.15
+    # obstacle-side clearances after the 2026-09-05 rail-zero fix (each ~4.25 cm
+    # tighter than the twin used to claim): carriage 12.4 cm, view flange 11.6 cm
+    assert twin.pair_distance(("view_rail_platform", "obstacle"), None, 0.5) > 0.12
+    assert twin.pair_distance(("view_link7", "obstacle"), None, 0.5) > 0.11
     nearest = twin.clearance(distmax=0.09)
     assert nearest == []  # nothing monitored within 9 cm at the initial state
 
@@ -363,7 +380,8 @@ def test_twin_audit_clean_with_microphone(built_mic, delta):
     # safety_debug band but the tightest clearance of the whole initial state
     assert 0.03 < twin.pair_distance(("view_microphone", "table"), None, 1.0) < 0.045
     assert twin.pair_distance(("view_microphone", "grip_rail_base"), None, 1.0) > 0.07
-    assert twin.pair_distance(("view_microphone", "obstacle"), None, 1.0) > 0.15
+    # 12.75 cm, was 17 cm before the 2026-09-05 rail-zero measurement (-4.25 cm)
+    assert twin.pair_distance(("view_microphone", "obstacle"), None, 1.0) > 0.12
     assert twin.pair_distance(("view_microphone", "view_link1"), None, 1.0) > 0.1
     assert twin.pair_distance(("view_microphone", "grip_link6"), None, 1.0) > 0.5
 

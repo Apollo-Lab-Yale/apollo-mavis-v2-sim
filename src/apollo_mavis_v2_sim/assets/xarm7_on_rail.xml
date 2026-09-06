@@ -85,12 +85,19 @@
 
   <worldbody>
     <!-- rail_base frame == rail origin (link_base pose at rail qpos 0).
-         Mesh offsets replicate the mavis alignment: at mid-travel
-         (qpos 0.325) the platform is centered on the rail mesh. -->
+         The along-travel mesh offset places the extrusion's TRAVEL-ZERO end
+         0.1875 m from the base centre -- MEASURED on the real cell 2026-09-05
+         (operator: rail end -> base cylinder centre 18.5-19 cm at the homed
+         carriage). The mavis reference model implied 0.2476 m and centred the
+         platform on the mesh at mid-travel; that was a 6.0 cm error and put the
+         twin's arms 4.25 cm too far from the zero end (03-sim 4.3). The mesh is
+         1.0926 m long against the real 1.075 m, so anchoring the zero end
+         leaves the FAR end 1.8 cm long -- deliberate: the zero end is the one
+         with the obstacle. -->
     <body name="rail_base">
       <inertial pos="0 0 0" mass="10" diaginertia="1 1 1"/>
       <geom name="rail" type="mesh" material="black" mesh="linear_motor_rail"
-        pos="0.038245 0.325 -0.064988"/>
+        pos="0.038245 0.385093 -0.064988"/>
       <body name="rail_platform">
         <inertial pos="0 0 0" mass="1" diaginertia="1 1 1"/>
         <!-- Direct [0, 0.65] range: MJCF qpos == app-level rail meters ==
