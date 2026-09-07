@@ -24,12 +24,19 @@ import yaml
 from apollo_mavis_v2_sim import REGISTRY, DigitalTwin, SceneOverrides
 from apollo_mavis_v2_sim.assets import asset_path
 from apollo_mavis_v2_sim.ik import default_collision_pairs
-from apollo_mavis_v2_sim.scenes.builder import MIC_RADIUS_M, MIC_TIP_Z_M, WRIST_CAM_Z_M
+from apollo_mavis_v2_sim.scenes.builder import (
+    MIC_RADIUS_M,
+    MIC_REF_PLANE_Z_M,
+    MIC_TIP_Z_M,
+    WRIST_CAM_POS_M,
+)
 from apollo_mavis_v2_sim.twin import geom_labels
 
 TABLE_TOP_Z, HALF_L, HALF_W = 0.735, 0.6075, 0.31
 RAIL_Z = 0.107188  # rail feet -> arm mounting plane (mavis rail mesh)
-RAIL_SPACING = 0.395  # between the two rail bases (identical rails, same orientation)
+RAIL_SPACING = 0.3902  # between the two rail bases -- 39.5 cm by tape (2026-09-02), 39.0 by the
+# wrist-camera overlay (2026-09-06: the same mesh edge aligns on the outer rail and is 5 mm off on
+# the inner one; the outer rail is pinned to the table edge by the 2.6 cm reading)
 RAIL_ACROSS = (-0.120, 0.0724)  # rail mesh across the travel axis (rail frame x; plate on -x)
 CARRIAGE_ACROSS = (-0.080, 0.090)
 BASE_R = 0.063
@@ -82,9 +89,10 @@ def _rail_bar_world(model, data, arm):
 # on the mesh at mid-travel -- a 6.0 cm error that put the twin's arms 4.25 cm too far
 # from the obstacle end (03-sim 4.3). The mesh is 1.0926 m against the real 1.075 m, so
 # anchoring the zero end leaves the FAR end 1.76 cm past the table edge.
-RAIL_BASE_TO_ZERO_X = 0.1875  # base centre -> the +X (travel-zero) end -- MEASURED
-RAIL_BASE_TO_FAR_X = 0.905086  # base centre -> the -X end (mesh length, 1.76 cm long)
-RAIL_MESH_FAR_OVERHANG = 0.0176  # how far the drawn rail passes the table's -X edge
+RAIL_BASE_TO_FACE_X = 0.1870  # base centre -> the rail's WIDE END FACE -- MEASURED
+RAIL_BASE_TO_BOSS_X = 0.2075  # base centre -> the boss tip (2.0 cm beyond that face)
+RAIL_BASE_TO_FAR_X = 0.885086  # base centre -> the -X end
+RAIL_MESH_FAR_OVERHANG = -0.0024  # drawn rail's -X end past the table's -X edge (<0: stops short)
 
 
 def test_rails_same_orientation_anchored_at_the_measured_travel_zero_end(built):
@@ -111,17 +119,33 @@ def test_rails_same_orientation_anchored_at_the_measured_travel_zero_end(built):
         by = model.body(f"{arm}_rail_base").pos[1]
         bar = _rail_bar_world(model, data, arm)
         assert (by - bar[:, 1].min()) > (bar[:, 1].max() - by)  # more overhang toward -Y
-        # ANCHOR (measured 2026-09-05, carriage homed): the +X / travel-zero end of the
-        # extrusion is 14.0 cm from the table's +X edge and 18.75 cm from the base centre
+        # ANCHOR (measured, carriage homed): the operator's reference is the rail's WIDE
+        # END FACE, not the boss that protrudes 2.0 cm past it -- 2026-09-05 anchored the
+        # boss by mistake, which moved the drawn rail 20 mm and cost a whole round of
+        # contradictory overlay measurements. The wide face is 14.5 cm from the table's
+        # +X edge and 18.5-19 cm from the base centre.
         x0 = model.body(f"{arm}_rail_base").pos[0]
-        np.testing.assert_allclose(HALF_L - bar[:, 0].max(), 0.140, atol=1e-3)
-        np.testing.assert_allclose(bar[:, 0].max() - x0, RAIL_BASE_TO_ZERO_X, atol=1e-3)
-        # the mesh is 1.76 cm longer than the real track, so the FAR end passes the
-        # table's -X edge by that much (the zero end is the one that matters: obstacle)
+        # the wide end face, defined geometrically: the largest x whose cross-section is
+        # at least 10 cm wide (the 14 cm end plate). Everything +X of it is the 3.2 cm
+        # boss, which is what 2026-09-05 anchored by mistake.
+        face_x = max(
+            x
+            for x in np.unique(np.round(bar[:, 0], 4))
+            for sel in [bar[np.abs(bar[:, 0] - x) < 0.0026]]
+            if len(sel) >= 8 and (sel[:, 1].max() - sel[:, 1].min()) >= 0.100
+        )
+        np.testing.assert_allclose(HALF_L - face_x, 0.1405, atol=1.5e-3)
+        np.testing.assert_allclose(face_x - x0, RAIL_BASE_TO_FACE_X, atol=1e-3)
+        np.testing.assert_allclose(bar[:, 0].max() - x0, RAIL_BASE_TO_BOSS_X, atol=1e-3)
+        np.testing.assert_allclose(HALF_L - bar[:, 0].max(), 0.1200, atol=1.5e-3)  # operator: ~12
+        # the mesh is 1.76 cm longer than the real track; with the zero end anchored the
+        # FAR end now stops 2.4 mm short of the table's -X edge (the zero end matters:
+        # obstacle). Real track: 1.075 m, flush at that edge by the 2026-09-02 tape.
         np.testing.assert_allclose(bar[:, 0].min(), -HALF_L - RAIL_MESH_FAR_OVERHANG, atol=1e-3)
         np.testing.assert_allclose(x0 - RAIL_BASE_TO_FAR_X, bar[:, 0].min(), atol=1e-3)
     # the arm base centre at the homed carriage: 32.75 cm from the table's +X edge
-    # (measured 14.0 + 18.75; the operator read 18.5-19 cm to the base cylinder)
+    # (wide end face 14.05 + 18.7 to the base cylinder; the face sits 5.95 cm +X of the
+    # tape-referenced dots per the wrist camera, 2026-09-06 -- see the YAML header)
     for arm in ("view", "grip"):
         mujoco.mj_resetDataKeyframe(model, data, 0)
         data.qpos[model.joint(f"{arm}_rail_joint").qposadr[0]] = 0.0
@@ -134,7 +158,7 @@ def test_rail_offsets_from_the_outer_edge(desc):
     arms = {a["id"]: a for a in desc["arms"]}
     view_y, grip_y = arms["view"]["base_pos"][1], arms["grip"]["base_pos"][1]
     np.testing.assert_allclose(HALF_W - (view_y + RAIL_ACROSS[1]), 0.026, atol=1e-3)  # 2.6 cm
-    np.testing.assert_allclose(view_y - grip_y, RAIL_SPACING, atol=1e-3)  # 39.5 cm apart
+    np.testing.assert_allclose(view_y - grip_y, RAIL_SPACING, atol=1e-3)  # 39.0 cm apart
     assert grip_y + RAIL_ACROSS[0] > -HALF_W  # plate edge stays on the table (0.66 cm)
 
 
@@ -210,13 +234,12 @@ def test_keyframe_is_the_initial_state(built, desc):
     grip_base = data.xpos[model.body("grip_link_base").id]
     view_base = data.xpos[model.body("view_link_base").id]
     np.testing.assert_allclose(grip_base[0], x0 - 0.65)  # -0.4125: operator's right
-    np.testing.assert_allclose(view_base[0], x0)  # +0.2375: operator's left
+    np.testing.assert_allclose(view_base[0], x0)  # +0.2800: operator's left
     assert grip_base[0] < 0 < view_base[0]
     o = model.geom("obstacle")
     # the Perception Arm's carriage stops short of the obstacle: 6.95 cm in x and
-    # 9.7 cm outside its y span (carriage across-extent +Y of the base line). Was
-    # 11.2 cm before the 2026-09-05 rail-zero measurement moved both arms 4.25 cm
-    # toward this end -- the twin used to over-state this gap (03-sim 4.3).
+    # 9.7 cm outside its y span (carriage across-extent +Y of the base line). It was
+    # 11.2 cm while x0 was derived from the reference mesh (2026-09-05/06 measurements).
     assert (o.pos[0] - o.size[0]) - (view_base[0] + 0.098) == pytest.approx(0.0695, abs=1e-3)
     assert (view_base[1] + CARRIAGE_ACROSS[0]) - (o.pos[1] + o.size[1]) > 0.09
     for arm in ("view", "grip"):
@@ -244,15 +267,17 @@ def test_initial_state_clearances(delta):
         assert twin.pair_distance((f"{arm}_link2", f"{arm}_link4"), None, 0.1) == pytest.approx(
             0.0178, abs=1e-3
         )
-    assert twin.pair_distance(("grip_left_finger", "table"), None, 0.5) > 0.09
+    # 8.97 cm: the pads hang 8 cm outside the table's inner edge, so this is a diagonal to
+    # the edge and shrank 3 mm when the 2026-09-06 overlay put the arm 5 mm nearer the channel
+    assert twin.pair_distance(("grip_left_finger", "table"), None, 0.5) > 0.085
     assert twin.pair_distance(("grip_link_base", "table"), None, 0.5) > 0.10
     assert twin.pair_distance(("view_d435_mount", "grip_rail_base"), None, 0.5) > 0.12
     # obstacle-side clearances after the 2026-09-05 rail-zero fix (each ~4.25 cm
     # tighter than the twin used to claim): carriage 12.4 cm, view flange 11.6 cm
     assert twin.pair_distance(("view_rail_platform", "obstacle"), None, 0.5) > 0.12
     assert twin.pair_distance(("view_link7", "obstacle"), None, 0.5) > 0.11
-    nearest = twin.clearance(distmax=0.09)
-    assert nearest == []  # nothing monitored within 9 cm at the initial state
+    nearest = twin.clearance(distmax=0.085)
+    assert nearest == []  # nothing monitored within 8.5 cm at the initial state (pads 8.97)
 
 
 def test_overviews_put_the_obstacle_on_the_image_left(built, desc):
@@ -334,7 +359,7 @@ def test_microphone_clears_the_side_mounted_camera(built_mic):
     mujoco.mj_forward(model, data)
     cam = model.camera("view_wrist_cam")
     assert model.body(cam.bodyid[0]).name == "view_d435_mount"
-    np.testing.assert_allclose(cam.pos, [0.07, 0.0, WRIST_CAM_Z_M])
+    np.testing.assert_allclose(cam.pos, WRIST_CAM_POS_M)  # MEASURED 2026-09-06
     look = data.cam_xmat[cam.id].reshape(3, 3)[:, 2]  # camera looks along -z of its frame
     flange_axis = data.xmat[model.body("view_link7").id].reshape(3, 3)[:, 2]
     assert -look @ flange_axis > 0.999  # LOOK = link7 +z: the mic points where the lens looks
@@ -352,8 +377,8 @@ def test_microphone_clears_the_side_mounted_camera(built_mic):
     assert verts[block, 0].min() == pytest.approx(0.055, abs=1e-3)  # camera block starts here
     gap = radial[block].min() - MIC_RADIUS_M
     assert gap == pytest.approx(0.015, abs=1e-3)  # 1.5 cm radial clearance
-    assert verts[:, 2].max() < WRIST_CAM_Z_M  # the mesh front face is behind the camera plane
-    assert MIC_TIP_Z_M == pytest.approx(WRIST_CAM_Z_M + 0.14)
+    assert verts[:, 2].max() < MIC_REF_PLANE_Z_M  # mesh front face behind the mic's reference plane
+    assert MIC_TIP_Z_M == pytest.approx(MIC_REF_PLANE_Z_M + 0.14)
     mic = model.geom("view_microphone")
     np.testing.assert_allclose(mic.pos[2] + mic.size[1], MIC_TIP_Z_M)  # tip at z = 0.19
     np.testing.assert_allclose(mic.pos[2] - mic.size[1], 0.0, atol=1e-12)  # base at the flange

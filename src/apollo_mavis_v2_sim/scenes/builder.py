@@ -37,19 +37,29 @@ N_GRIPPER_JOINTS = 6  # driver/follower/spring-link x left/right
 
 # Microphone body (RODE NT-USB Mini + bracket) on a camera-only arm, link7 frame
 # (03-sim §3). The link7 origin IS the flange face and +z the flange/tool axis.
-# The wrist camera sits at pos (0.07, 0, 0.05) looking +z (child MJCF), i.e. its
-# optical centre is 0.07 m off-axis in +x and its modelled front plane is z=0.05;
-# the D435 block of the d435_with_cam_stand mesh starts at x = 0.055 (only its 3 mm
-# mounting plate, z <= 0.003, lies inside the cylinder footprint -- same welded
-# body, never a contact pair). The mic is a cylinder coaxial with the flange from
-# the flange face (z = 0) to 0.14 m past the camera plane -> tip at z = 0.19,
-# radius 0.040 m (8 cm diameter, user-corrected 2026-09-03) -> 1.5 cm radial gap
-# to the camera block. Pinned by tests/test_mavis_v2.py against the compiled mesh.
-WRIST_CAM_Z_M = 0.05  # <camera name="wrist_cam" pos="0.07 0 0.05"> in link7
-MIC_AHEAD_OF_CAM_M = 0.14  # mic tip beyond the camera plane
+# WRIST CAMERA POSE IN link7 -- MEASURED 2026-09-06 (03-sim 4.3, "wrist camera
+# extrinsic"). It had been the reference model's guess (0.07, 0, 0.05), which put the
+# twin's optical centre 17.1 mm sideways and 19.8 mm too far from the flange face:
+# that single error was the whole visible overlay offset the operator reported, and it
+# is why the twin's table-plane image scale was 2.7 % too large. Solved from four
+# hand-drawn dots on the table whose world positions were tape-measured, with the
+# camera ROTATION left at the model's value (independently confirmed: the observed
+# perspective convergence of a 195 x 96 mm rectangle matches the twin's to 1.0226 vs
+# 1.0226). Reprojection RMS 1.75 px over the four dots; the rail's own end face,
+# which was NOT used in the fit, lands 1.3 px from where the frame shows it.
+WRIST_CAM_POS_M = (0.06832, -0.02220, 0.02945)
+# The MICROPHONE body is deliberately NOT tied to the camera pose. It is a physical
+# part on the bracket: re-measuring where the lens's optical centre sits does not move
+# it. Its length was originally referenced to the assumed camera plane z = 0.05, so
+# that number lives on here as the mic's own reference plane. The mic geometry is
+# STILL UNVERIFIED -- the real view_wrist image shows no occlusion where the twin
+# shows ~12 % -- and needs its own measurement of the mount (CLAUDE.md).
+MIC_REF_PLANE_Z_M = 0.05
+MIC_AHEAD_OF_CAM_M = 0.14  # mic tip beyond that reference plane
 MIC_RADIUS_M = 0.040
-MIC_TIP_Z_M = WRIST_CAM_Z_M + MIC_AHEAD_OF_CAM_M  # 0.19
+MIC_TIP_Z_M = MIC_REF_PLANE_Z_M + MIC_AHEAD_OF_CAM_M  # 0.19
 MIC_HALF_LENGTH_M = MIC_TIP_Z_M / 2.0  # MuJoCo cylinder size = [radius, half-length]
+WRIST_CAM_Z_M = MIC_REF_PLANE_Z_M  # deprecated alias, kept for the mic's own tests
 MIC_MASS_KG = 0.45  # NT-USB Mini (~0.35 kg) + bracket -- estimate, to be weighed
 MIC_RGBA = (0.12, 0.12, 0.13, 1.0)  # dark housing
 
@@ -351,6 +361,8 @@ __all__ = [
     "MIC_RADIUS_M",
     "MIC_TIP_Z_M",
     "MIC_MASS_KG",
+    "WRIST_CAM_POS_M",
+    "MIC_REF_PLANE_Z_M",
     "WRIST_CAM_Z_M",
     "BuiltScene",
     "scene_meta",

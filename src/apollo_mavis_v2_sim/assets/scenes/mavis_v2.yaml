@@ -39,18 +39,33 @@
 #   interior (−Y, away from the operator); q=0 at the operator's LEFT end (+X),
 #   qpos increases toward −X (q = 0.65 is the −X/right end).
 #   Perception Arm 'view': rail outer edge 2.6 cm from the outer edge -> y0 = 0.2116
-#   Manipulation Arm 'grip': 39.5 cm inward (base lines)                -> y0 = -0.1834
-#     its plate edge is 0.7 cm from the inner edge; channel between the rail
-#     bodies y in [-0.1110, 0.0916] (20.3 cm, mavis mesh width 19.2 cm)
-#   ALONG-TRAVEL ANCHOR, MEASURED 2026-09-05 with both tracks homed (supersedes the
-#     2026-09-02 derivation): the extrusion's +X / TRAVEL-ZERO end is 14.0 cm from the
-#     table's +X edge (x = +0.4675) and 18.5–19 cm from the arm base cylinder's centre
-#     → base centre x0 = +0.2800 (32.75 cm from the +X edge, ±0.25 cm), rail geom
-#     offset y = 0.385093 so base centre → zero end = 0.1875 m.
+#   Manipulation Arm 'grip': 39.0 cm inward (base lines)                -> y0 = -0.1786
+#     (tape 2026-09-02 said 39.5; the wrist-camera overlay 2026-09-06 puts the SAME mesh
+#     edge 0 px off on the outer rail and 5 mm off on this one, so the spacing is 39.0)
+#     its plate edge is 1.1 cm from the inner edge; channel between the rail
+#     bodies y in [-0.1062, 0.0916] (19.8 cm, mavis mesh width 19.2 cm)
+#   ALONG-TRAVEL ANCHOR, MEASURED 2026-09-05, END FEATURE CORRECTED 2026-09-06
+#     (supersedes the 2026-09-02 derivation). The operator's reference is the rail's
+#     WIDE END FACE — the 14 cm-wide end plate — NOT the 3.2 cm-square boss that
+#     protrudes 2.0 cm past it. 2026-09-05 anchored the boss by mistake, which put the
+#     drawn rail 20 mm too far −X and produced a round of contradictory overlay
+#     measurements before the wrist-camera solve exposed it.
+#     Measured: wide end face 14.5 cm from the table's +X edge (twin: 14.55, x =
+#     +0.4620); wide face → base cylinder centre 18.5–19 cm (twin: 187.0 mm); boss tip
+#     ~12 cm, hard to read with the sleeve fitted (twin: 12.50).
+#     → rail geom offset y = 0.365093 so base centre → boss tip = 0.2075 m and → wide
+#     face = 0.1870 m; x0 = +0.2800 (32.75 cm from the +X edge; wide face 14.05, boss
+#     12.0). The wrist camera, pinned to tape-referenced dots on the table, puts BOTH
+#     rails' end faces 4-7 mm further +X than x0 = 0.2750 did (2026-09-06 residual
+#     pass) — the face sits 5.95 cm +X of the dots that the tape called 20.0 cm from the
+#     edge, so the two table-referenced tape readings (14.5 and 20.0) disagree by 4.5 mm
+#     and the image decides: arms + rails moved +5 mm together, face → base kept at the
+#     measured 18.7.
 #     WAS x0 = +0.2375 with 0.2476 m to the zero end, taken from the mavis reference
 #     mesh (which centres the carriage at mid-travel) and never verified: a 6.0 cm
 #     error that placed BOTH arms 4.25 cm too far from the obstacle end, so every
-#     obstacle-side clearance the twin reported was optimistic by that much.
+#     obstacle-side clearance the twin reported was optimistic by that much. The
+#     the 2026-09-06 end-feature fix and the overlay residual pass net out at x0 = 0.2800.
 #     x0 uses only the SUM of the two readings (14.0 + 18.75 = 32.75 cm from the +X
 #     edge to the base centre), so it does NOT depend on WHICH end feature the tape
 #     touched — the mesh's zero end is a 3.2 cm-square boss protruding 2.0 cm
@@ -59,21 +74,30 @@
 #     end-plate face instead, the drawn rail belongs 2.0 cm further +X (cosmetic +
 #     collision hull only, x0 unaffected).
 #     Residual mesh errors, NOT fixable without better meshes (documented, harmless):
-#       - rail mesh 1.0926 m vs the real 1.075 m → the drawn rail passes the table's
-#         −X edge by 1.76 cm (the zero end is anchored instead: it has the obstacle);
+#       - rail mesh 1.0926 m vs the real 1.075 m; with the wide end face anchored the
+#         drawn rail's −X end now stops 0.24 cm SHORT of the table's −X edge (the real
+#         track is flush there), and its boss reaches 4.0 cm into the obstacle's x-span;
 #       - carriage mesh: it is 1.0 cm ASYMMETRIC about the base (local y [-0.098,
 #         +0.088] → +X/left edge base+0.098, −X/right edge base−0.088; two doc lines
 #         used 0.098 on both sides and were 1 cm off). At q=0 its +X edge stops 8.95 cm
 #         short of the zero end where the real carriage stops 5–6 cm short → the
 #         monitored carriage↔obstacle gap is ~3.4 cm optimistic;
 #       - at the keyframe's q = 0.65 the mesh carriage's −X edge is 14.95 cm from the
-#         −X table edge (was 10.70 cm before this fix; the old docs said 9.7 cm, itself
-#         1 cm off from the carriage asymmetry).
+#         −X table edge (10.70 cm before the 09-05 fix; the pre-09-05 docs said 9.7 cm,
+#         itself 1 cm off from the carriage asymmetry).
+#   WRIST CAMERA EXTRINSIC, MEASURED 2026-09-06: the camera's pose on link7 had been
+#     the reference model's guess (0.07, 0, 0.05); solved from four tape-referenced dots
+#     it is (0.06832, -0.02220, 0.02945) m, i.e. ~22 mm sideways and ~20 mm nearer the
+#     flange than modelled (re-solved after the 09-06 residual pass moved base_pos). That single error was the whole visible overlay offset and
+#     the twin's 2.7 % table-plane over-scale. fx/fy and the camera ROTATION were both
+#     confirmed correct (607 ± 4 px vs the configured 608.19; the rectangle's perspective
+#     convergence 1.0226 measured vs 1.0226 predicted). Lives in xarm7_on_rail.xml; the
+#     MICROPHONE body is deliberately NOT tied to it (see builder.py MIC_REF_PLANE_Z_M).
 # Obstacle (untouchable, environment collision): 0.16 x 0.16 x 0.24 m, flush against
 #   the +X table edge (operator's LEFT, the empty end), in the channel between the
 #   rails; near face 27.5 cm in from the outer edge as measured -> y in [-0.1250,
 #   0.0350]. Its inner face is 1.4 cm past the mesh gripper-rail inner edge and the
-#   mesh rail reaches 2.0 cm into the obstacle's x-span: a static corner overlap
+#   mesh rail's boss reaches 4.0 cm into the obstacle's x-span: a static corner overlap
 #   (rail mesh length/width vs the real track; no effect on the twin or physics,
 #   both are welded to the world so MuJoCo filters the pair — the sweep's tightest
 #   pair is floor↔view_link_base, never this one).
@@ -90,11 +114,12 @@
 #   Twin audit at δ = 0.008 and 0.025, mic off and on: clean, given the intra-arm
 #   allowed pair link2↔link4 below. Smallest monitored clearances (obstacle-side ones
 #   are 4.25 cm tighter since the 2026-09-05 rail-zero measurement above): grip finger
-#   pads ↔ table 9.3 cm, link_base ↔ table 10.7 cm, view flange (link7) ↔ obstacle
-#   11.6 cm, view_d435_mount ↔ grip rail 12.4 cm, view carriage ↔ obstacle 12.4 cm
-#   (was 15.4); with the mic on: mic tip ↔ table 3.8 cm (the mic points at the table;
-#   tip z ≈ 0.773), mic ↔ grip rail 7.7 cm, mic ↔ obstacle 12.75 cm (was 17), mic ↔ own
-#   link1 12.4 cm. Nothing monitored within 9 cm, mic off. Gripper open. The guardrail scenarios
+#   pads ↔ table 8.97 cm (a diagonal to the table's inner edge — the pads hang 8 cm
+#   outside it), link_base ↔ table 10.7 cm, view flange (link7) ↔ obstacle 11.55 cm,
+#   view_d435_mount ↔ grip rail 12.2 cm, view carriage ↔ obstacle 12.4 cm (15.4 before
+#   09-05); with the mic on: mic tip ↔ table 3.8 cm (the mic points at the table; tip
+#   z ≈ 0.773), mic ↔ grip rail 7.2 cm, mic ↔ obstacle 12.75 cm (17 before 09-05), mic
+#   ↔ own link1 12.4 cm. Nothing monitored within 8.5 cm with the mic off. Nothing monitored within 9 cm, mic off. Gripper open. The guardrail scenarios
 #   'mavis_v2_rail_sweep[_mic]' no longer start here: they teleport to their own
 #   lowered ready pose (the pre-2026-09-04 keyframe) before sweeping +X along the
 #   channel into the obstacle's face.
@@ -142,7 +167,7 @@ arms:
   microphone: false  # hardware twin: true via SceneOverrides.microphones (see header)
 - id: grip
   model: xarm7_on_rail
-  base_pos: [0.28, -0.1834, 0.842188]
+  base_pos: [0.28, -0.1786, 0.842188]
   base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
   gripper: xarm
   wrist_cam: true

@@ -85,19 +85,21 @@
 
   <worldbody>
     <!-- rail_base frame == rail origin (link_base pose at rail qpos 0).
-         The along-travel mesh offset places the extrusion's TRAVEL-ZERO end
-         0.1875 m from the base centre -- MEASURED on the real cell 2026-09-05
-         (operator: rail end -> base cylinder centre 18.5-19 cm at the homed
-         carriage). The mavis reference model implied 0.2476 m and centred the
-         platform on the mesh at mid-travel; that was a 6.0 cm error and put the
-         twin's arms 4.25 cm too far from the zero end (03-sim 4.3). The mesh is
-         1.0926 m long against the real 1.075 m, so anchoring the zero end
-         leaves the FAR end 1.8 cm long -- deliberate: the zero end is the one
-         with the obstacle. -->
+         The along-travel mesh offset places the extrusion's WIDE END FACE (the
+         14 cm end plate at the travel-zero end) 0.187 m from the base centre,
+         MEASURED on the real cell (operator: wide face -> base cylinder centre
+         18.5-19 cm at the homed carriage; 2026-09-05, end feature corrected
+         2026-09-06). The 3.2 cm boss protrudes a further 2.0 cm (0.2075 m);
+         anchoring THAT by mistake on 09-05 moved the drawn rail 20 mm. The mavis
+         reference model implied 0.2476 m to the boss and centred the platform on
+         the mesh at mid-travel: a 4 cm error that put the twin's arms too far
+         from the zero end (03-sim 4.3). The mesh is 1.0926 m against the real
+         1.075 m, so anchoring the zero end leaves the FAR end 0.3 cm long --
+         deliberate: the zero end is the one with the obstacle. -->
     <body name="rail_base">
       <inertial pos="0 0 0" mass="10" diaginertia="1 1 1"/>
       <geom name="rail" type="mesh" material="black" mesh="linear_motor_rail"
-        pos="0.038245 0.385093 -0.064988"/>
+        pos="0.038245 0.365093 -0.064988"/>
       <body name="rail_platform">
         <inertial pos="0 0 0" mass="1" diaginertia="1 1 1"/>
         <!-- Direct [0, 0.65] range: MJCF qpos == app-level rail meters ==
@@ -146,13 +148,21 @@
                           diaginertia="0.000132176 9.3e-05 5.85236e-05"/>
                         <joint name="joint7" class="size3"/>
                         <geom material="gray" mesh="end_tool"/>
-                        <!-- D435 wrist camera + mount (mavis pose/fovy).
-                             Mount geom is visual-only: the stand mesh
-                             overlaps the gripper base hull and would
-                             otherwise produce a permanent contact. -->
+                        <!-- D435 wrist camera + mount. Camera POS is MEASURED
+                             (2026-09-06): solved from four tape-referenced dots
+                             on the table with the rotation held at the model's
+                             value (independently confirmed by the observed
+                             perspective convergence). The reference model's
+                             guess (0.07 0 0.05) was ~22 mm sideways and ~20 mm
+                             too far from the flange; that was the entire visible
+                             twin-overlay offset (03-sim 4.3). fovy 57 is the
+                             depth FOV and is overridden by the real colour
+                             intrinsics in the overlay. Mount geom is visual-only:
+                             the stand mesh overlaps the gripper base hull and
+                             would otherwise produce a permanent contact. -->
                         <body name="d435_mount">
                           <geom name="d435" class="visual" material="gray" mesh="d435_with_cam_stand"/>
-                          <camera name="wrist_cam" pos="0.07 0 0.05" quat="0 0.7071 0.7071 0" fovy="57"/>
+                          <camera name="wrist_cam" pos="0.06832 -0.02220 0.02945" quat="0 0.7071 0.7071 0" fovy="57"/>
                         </body>
                         <body name="xarm_gripper_base_link" quat="0 0 0 1">
                           <inertial pos="-0.00065489 -0.0018497 0.048028" quat="0.997403 -0.0717512 -0.0061836 0.000477479"

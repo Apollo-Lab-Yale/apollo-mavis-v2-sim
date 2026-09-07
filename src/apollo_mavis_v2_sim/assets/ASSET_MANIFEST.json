@@ -11,7 +11,7 @@
   "scenes/guardrail_env.yaml": "cf82c341dd93daf3aad7f91c92a2c12ad3aec466c85d3bafc14d5f81aca8cf2d",
   "scenes/guardrail_face.yaml": "fa0da872d06d568885bea4d747e37da1be3f4a2c7787c6b6002c5ef0beb542bb",
   "scenes/guardrail_rail.yaml": "fe7ce3354326c71041e0c152742947c9537fd8810f3013dfeb771d9b95983146",
-  "scenes/mavis_v2.yaml": "50678263a240ee053a4c57793b7bb92e36a95fbc50ac316e7e14c1900dccdbee",
+  "scenes/mavis_v2.yaml": "dd5a3f026027150a5f0fb106c67141fee97ead254c3416fe3c484dfd3422439f",
   "scenes/single_fixed_tabletop.yaml": "28f0ece407bc8b9915ee862c8f3654f5485a9f4bf05d6e2fc9e7ee86d1d9d76c",
   "scenes/single_rail.yaml": "135059a945db0ffc94b6a79a84e0d64742f53bea1d0a45bc483cbd78cff1a2bf",
   "scenes/triple_rail_row.yaml": "6bc366986ba3dc498d4ce9a45d72bdc44482710d8c26d2b7387ac2a2127e4502",
@@ -37,5 +37,5 @@
   "ufactory_xarm7/xarm7.xml": "ac6b369e0b9c5abdaca55d2c6c048102f2e1133bf550b059a8622afa4b9da433",
   "ufactory_xarm7/xarm7_nohand.xml": "90bcc0e2fbbe5fa95dbbafb74e56bd0106ecc6f5767a4dc3e7c511016efc023c",
   "xarm7_fixed.xml": "2ac72a46159a1e5b9fcbc7b88d031b1066a0575a87877913b026de8ee447eb55",
-  "xarm7_on_rail.xml": "85f2a5e665bde7ef0832587af4054fac26590d81ee806e0bb34a4036b06e45da"
+  "xarm7_on_rail.xml": "c490f835ddbc1c8b5fa8c73522553a50d425af7542150c0f6e01223f8e2f9e73"
 }
