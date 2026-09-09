@@ -92,6 +92,7 @@ def scene_meta(desc: SceneDescriptor, overrides: SceneOverrides | None = None) -
         title=desc.title,
         hidden=desc.hidden,
         microphones={a.id: a.microphone for a in arms},
+        graspable=tuple(desc.graspable),
     )
 
 
@@ -101,8 +102,10 @@ def build_scene(desc: SceneDescriptor, overrides: SceneOverrides | None = None) 
     meta = scene_meta(desc, overrides)
     spec = mujoco.MjSpec()
     spec.modelname = desc.id
-    # Absolute meshdir so spec.to_xml() re-compiles anywhere (episode replay).
+    # Absolute meshdir / texturedir so spec.to_xml() re-compiles anywhere (episode
+    # replay); environment meshes and textures are asset-relative FILES (03-sim §4.1).
     spec.meshdir = str(asset_path())
+    spec.texturedir = str(asset_path())
     _apply_options(spec, desc)
     _add_lights_cameras_environment(spec, desc)
     _add_initial_keyframe(spec, arms, desc.keyframe)  # BEFORE attach -> key index 0
@@ -126,6 +129,7 @@ def build_scene(desc: SceneDescriptor, overrides: SceneOverrides | None = None) 
     if overrides is not None and overrides.geom_inflation_m is not None:
         _apply_inflation(model, overrides.geom_inflation_m)
     _validate_allowed_pairs(model, desc, arms)
+    _validate_graspable(model, desc)
     return BuiltScene(meta, spec, model, spec.to_xml(), Addressing(model, meta))
 
 
@@ -158,6 +162,22 @@ def _validate_allowed_pairs(
             )
 
 
+def _validate_graspable(model: mujoco.MjModel, desc: SceneDescriptor) -> None:
+    """Every ``graspable`` name must be a WORLD geom of the built model (a session
+    whitelists it against a gripper by its twin pair label = the geom name)."""
+    world_geoms = set()
+    for g in range(model.ngeom):
+        if int(model.geom_bodyid[g]) == 0:
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g)
+            if name:
+                world_geoms.add(name)
+    for label in desc.graspable:
+        if label not in world_geoms:
+            raise SceneCompileError(
+                f"scene {desc.id!r}: graspable {label!r} matches no world geom of the built model"
+            )
+
+
 def _apply_options(spec: mujoco.MjSpec, desc: SceneDescriptor) -> None:
     opt = desc.options
     spec.option.timestep = opt.timestep
@@ -187,18 +207,78 @@ def _add_lights_cameras_environment(spec: mujoco.MjSpec, desc: SceneDescriptor) 
             name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[3.0, 3.0, 0.1],
             rgba=[0.35, 0.35, 0.35, 1.0],
         )
+    materials: dict[str, str] = {}  # texture path -> material name
+    meshes: dict[tuple[str, tuple[float, float, float]], str] = {}  # (file, scale) -> mesh name
+    taken: set[str] = set()  # asset identifiers handed out so far
     for env in desc.environment:
-        gtype = (
-            mujoco.mjtGeom.mjGEOM_PLANE if env.type == "plane" else mujoco.mjtGeom.mjGEOM_BOX
+        kwargs: dict = dict(
+            name=env.name, pos=list(env.pos), quat=list(env.quat), rgba=list(env.rgba)
         )
-        spec.worldbody.add_geom(
-            name=env.name, type=gtype, size=list(env.size), pos=list(env.pos),
-            quat=list(env.quat), rgba=list(env.rgba),
-        )
+        if env.type == "mesh":
+            assert env.mesh is not None  # EnvironmentSpec validator
+            key = (env.mesh, tuple(env.scale))
+            if key not in meshes:
+                _require_asset(desc, env.mesh, f"environment geom {env.name!r} mesh")
+                mesh_name = _asset_ident("mesh", env.mesh, taken)
+                spec.add_mesh(name=mesh_name, file=env.mesh, scale=list(env.scale))
+                meshes[key] = mesh_name
+            kwargs.update(type=mujoco.mjtGeom.mjGEOM_MESH, meshname=meshes[key])
+        else:
+            assert env.size is not None  # EnvironmentSpec validator
+            kwargs.update(
+                type=(
+                    mujoco.mjtGeom.mjGEOM_PLANE
+                    if env.type == "plane"
+                    else mujoco.mjtGeom.mjGEOM_BOX
+                ),
+                size=list(env.size),
+            )
+        if env.texture is not None:
+            if env.texture not in materials:
+                # One 2D FILE texture + material per distinct PNG (buffer textures would
+                # break spec.to_xml(), which is persisted with every episode).
+                _require_asset(desc, env.texture, f"environment geom {env.name!r} texture")
+                ident = _asset_ident("tex", env.texture, taken)
+                spec.add_texture(
+                    name=ident, type=mujoco.mjtTexture.mjTEXTURE_2D, file=env.texture
+                )
+                mat = spec.add_material(name=f"{ident}_mat")
+                mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = ident
+                mat.texuniform = False
+                materials[env.texture] = mat.name
+            kwargs["material"] = materials[env.texture]
+        if not env.collidable:
+            # Visual-only (AprilTag plates): never a contact, never a monitored pair,
+            # never inflated; group 1 unless the author picks one.
+            kwargs.update(contype=0, conaffinity=0, group=1 if env.group is None else env.group)
+        elif env.group is not None:
+            kwargs["group"] = env.group
+        spec.worldbody.add_geom(**kwargs)
     for cam in desc.cameras:
         spec.worldbody.add_camera(
             name=cam.name, pos=list(cam.pos), xyaxes=list(cam.xyaxes), fovy=cam.fovy
         )
+
+
+def _require_asset(desc: SceneDescriptor, rel: str, what: str) -> None:
+    """Asset-relative mesh / texture files must exist BEFORE compile (MuJoCo's own
+    error names the absolute path and arrives from deep inside the compiler)."""
+    try:
+        asset_path(*rel.split("/"))
+    except FileNotFoundError as e:
+        raise SceneCompileError(f"scene {desc.id!r}: {what} {rel!r} is not a vendored asset") from e
+
+
+def _asset_ident(kind: str, rel: str, taken: set[str]) -> str:
+    """Stable MJCF asset name for an asset-relative path (``tex_textures_tag_png``);
+    a second path that sanitises to the same identifier gets a ``_2`` / ``_3`` suffix."""
+    stem = "".join(c if c.isalnum() else "_" for c in rel).strip("_")
+    name, n = f"{kind}_{stem}", 1
+    while name in taken:
+        n += 1
+        name = f"{kind}_{stem}_{n}"
+    taken.add(name)
+    return name
 
 
 def _customize_child(child: mujoco.MjSpec, arm: ArmSpec) -> None:

@@ -1,0 +1,203 @@
+# MAVIS v2 lab cell + the lab KITCHEN — the digital twin of GELLO Manipulation mode
+# (docs/design/16-gello.md §3 / §10; phase-15, 2026-09-09). Hidden from the scene listing:
+# `mavis_v2` stays the only exposed scene; the GELLO card selects this id implicitly.
+#
+# CELL GEOMETRY IS mavis_v2's. The `arms`, `cameras` cam_front / cam_top, the `table` and
+# `obstacle` geoms, `allowed_pairs` and the Manipulation Arm's keyframe below are copied
+# VERBATIM from mavis_v2.yaml (tests/test_mavis_v2_kitchen.py asserts the blocks are equal):
+# that file's header and 03-sim §4.3 hold the cell measurements and their history — edit
+# them THERE, then mirror the change here. This header records only what the kitchen adds.
+#
+# KITCHEN MEASUREMENT, 2026-09-09 (summary of 16-gello §3; edit the numbers there and here
+# together; raw captures in the runtime's var/gello-kitchen-20260909/):
+#   Method. The Perception Arm stood at the GELLO hold posture (J1-J7 [2.646, -1.598, 0.018,
+#   1.637, 0.25, 2.007, 0.029] rad, rail 0.0 — the `view` keyframe below), controller stopped.
+#   One colour frame of view_wrist (640x480) and 45 depth frames of the same D435i were taken;
+#   the median depth was re-projected into the colour frame with the device's depth->colour
+#   extrinsics (t = [14.8, -0.16, 0.32] mm) and the colour intrinsics fx 606.36 fy 606.38
+#   cx 311.90 cy 249.45, PLUS the overlay's principal-point nudge for view_wrist
+#   (principal_offset_px [21, 13]: real image = modelled camera with cx + 21, cy + 13).
+#   Camera pose from the mavis_v2 twin at that posture: (0.460, 0.394, 1.579) m, optical axis
+#   (-0.243, -0.907, -0.343) — toward -Y (away from the operator), 20 deg down, image right
+#   ~ world -X.
+#   Tags. Family tagStandard41h12, ids 0, 1, 3, 4 (pupil-apriltags, margins 37-69, hamming
+#   <= 1). Each tag's depth pixels were plane-fitted (RMS 1.8-3.2 mm) and the detected corners
+#   intersected with the plane; detected-quad edge 0.0931 m (mean of 16 edges, +-3 mm). For
+#   this family the detected quad is the inner 5 of 9 bits, so the printed tag is 0.168 m and
+#   the sheet with its one-bit white margin 0.205 m — the plate half-size 0.1024 below.
+#   Tag centres (world, m): 0 (0.075, -1.314, 1.426) fridge +X side panel, upper;
+#   4 (0.076, -1.142, 0.543) fridge +X side panel, lower; 1 (-0.360, -1.027, 1.489) fridge
+#   upper door (+Y face); 3 (0.616, -1.222, 0.498) range oven door (+Y face). Tags 0 and 4
+#   share x to 1 mm across 88 cm of height: the fridge side is parallel to world Y, i.e. the
+#   kitchen run is parallel to world X (yaw 0).
+#   Anchor planes from depth: counter top z = 0.926 (36-inch standard 0.914, +1 cm), drawer
+#   fronts y = -1.279, range front (tag 3) y = -1.222, fridge door (tag 1) y = -1.027, fridge
+#   side (tags 0/4) x = 0.075, range's right edge x ~ 0.48. Consistency checks: counter depth
+#   0.604 m vs the 24-inch standard 0.610; the fridge's back lands 2.7 cm off the wall implied
+#   by the 28-inch-deep range.
+#   Spec dimensions (web spec pages): fridge GE GDE21ESKSS W 29 3/4 x H 69 7/8 x D 34 5/8 in
+#   (with handle); 30-inch GE free-standing coil range W 29 7/8 x H 47 (backguard top) x
+#   D 28 in, cooktop 36 in; counter 36 in high, 24 in deep; upper cabinets 12 in deep from
+#   54 to 84 in above the floor. Floor z = 0 is the twin's floor (shared room floor, assumption).
+#   Boxes: `size` = half-extents and `pos` = centre computed from the x / y / z ranges of the
+#   16-gello §3 table (e.g. fridge_body x -0.681..0.075, y -1.856..-1.027, z 0..1.775).
+#   ACCURACY: depth at 1.5-2.2 m carries +-2-3 cm and the camera-model convention another
+#   +-2 cm; the spec dimensions are exact only for the measured faces. Treat EVERY appliance
+#   face as +-3 cm until the *_align overlays on this scene have been compared with the real
+#   wrist images and the numbers nudged (phase-15 acceptance step). Reach: the Manipulation
+#   Arm's base line is y = -0.179, so the fridge door / handle (y ~ -1.03 / -0.98) is at the
+#   limit of its reach and the range is beyond it — the fridge is the obstacle that matters
+#   for the gate; the rest matters for completeness and the overlays.
+#   Not modelled: the blue cart in front of the fridge, the tripod, the hood, the fridge door
+#   as a hinged body.
+# Tag plates: non-collidable 1 mm boxes (size [0.0005, 0.1024, 0.1024]) standing 0.5-1 mm proud
+#   of their face, textured with the AprilTag PNGs (assets/textures/, one white bit of margin).
+#   Orientation convention (verified by the detection test on a render): with the identity
+#   quat the texture shows on the local +x face with the tag's right along local +y and its
+#   top along local +z, upright and unmirrored as seen from +x. Fridge-side plates (normal +X)
+#   therefore keep the identity quat; the door / oven plates (normal +Y) are yawed +90 deg
+#   about z ([0.70710678, 0, 0, 0.70710678]: local +y -> world -X = image right from the
+#   operator side).
+# graspable (16-gello D7): the three handles. A GELLO session whitelists them against the
+#   Manipulation Arm's gripper (DigitalTwin.set_grasp_whitelist) so the fingers may touch a
+#   handle while every arm link stays gated against every appliance body.
+# cam_kitchen: operator-side overview for the GELLO launch preview — frames the fridge front
+#   and the Manipulation Arm at its keyframe (image right = -X, the operator convention).
+# Keyframe: Perception Arm at the GELLO hold posture (rail 0 = operator's left end, camera on
+#   the kitchen), Manipulation Arm at the mavis_v2 initial state (rail 0.65, folded zero,
+#   joint 1 = pi). Twin audit clean at delta = 0.008 and 0.025, mic off and on (540 / 571
+#   monitored pairs, nothing within 5 cm). tests/test_mavis_v2_kitchen.py renders view_wrist_cam
+#   from this keyframe with the real intrinsics + nudge and detects all four tags within 1 px of
+#   the real 2026-09-09 detections (2x supersampled: the edge-on side plates are ~10 px wide at
+#   640x480 and MuJoCo's mipmapping blurs them at native resolution); the twin's modelled mic
+#   body (unverified, 03-sim 4.3) occludes tag_4 at the bottom-centre of the image.
+id: mavis_v2_kitchen
+title: APOLLO MAVIS V2 Kitchen (GELLO)
+description: MAVIS v2 cell plus the lab kitchen (GE GDE21ESKSS refrigerator, 30-inch GE range,
+  counter, upper cabinets, wall) with four AprilTags - the GELLO Manipulation digital twin
+hidden: true
+suitable_for: [sim, twin]
+arms:
+- id: view
+  model: xarm7_on_rail
+  base_pos: [0.28, 0.2116, 0.842188]
+  base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
+  gripper: none
+  wrist_cam: true
+  microphone: false  # hardware twin: true via SceneOverrides.microphones (see header)
+- id: grip
+  model: xarm7_on_rail
+  base_pos: [0.28, -0.1786, 0.842188]
+  base_quat: [0.70710678, 0.0, 0.0, 0.70710678]
+  gripper: xarm
+  wrist_cam: true
+view: {azimuth: -90.0, elevation: -30.0}
+cameras:
+- name: cam_front
+  pos: [0.0, 2.0, 1.9]
+  xyaxes: [-1, 0, 0, 0, -0.55, 1]
+  fovy: 45
+- name: cam_top
+  pos: [0.0, 0.0, 2.6]
+  xyaxes: [-1, 0, 0, 0, -1, 0]
+  fovy: 42
+- name: cam_kitchen  # operator side, looking -Y and down at the fridge front + the Manipulation Arm
+  pos: [-0.15, 1.0, 2.0]
+  xyaxes: [-1, 0, 0, 0, -0.6, 1]
+  fovy: 60
+environment:
+- name: table
+  type: box
+  size: [0.6075, 0.31, 0.015]
+  pos: [0.0, 0.0, 0.72]
+  rgba: [0.62, 0.48, 0.32, 1.0]
+- name: obstacle
+  type: box
+  size: [0.08, 0.08, 0.12]
+  pos: [0.5275, -0.045, 0.855]
+  rgba: [0.75, 0.22, 0.2, 1.0]
+# --- kitchen (16-gello §3 table; size = half-extents, pos = centre) ---------------------
+- name: fridge_body  # GE GDE21ESKSS case + doors; x -0.681..0.075, y -1.856..-1.027, z 0..1.775
+  type: box
+  size: [0.378, 0.4145, 0.8875]
+  pos: [-0.303, -1.4415, 0.8875]
+  rgba: [0.72, 0.73, 0.75, 1.0]
+- name: fridge_door_handle  # vertical bar at the +X edge of the upper door; z 0.75..1.65
+  type: box
+  size: [0.015, 0.025, 0.45]
+  pos: [0.03, -1.002, 1.2]
+  rgba: [0.6, 0.6, 0.62, 1.0]
+- name: fridge_drawer_handle  # freezer drawer bar (measured z 0.49); x -0.545..-0.055
+  type: box
+  size: [0.245, 0.025, 0.0175]
+  pos: [-0.3, -1.002, 0.4925]
+  rgba: [0.6, 0.6, 0.62, 1.0]
+- name: range_body  # 30-inch range; x 0.480..1.239, y -1.883..-1.222, z 0..0.914
+  type: box
+  size: [0.3795, 0.3305, 0.457]
+  pos: [0.8595, -1.5525, 0.457]
+  rgba: [0.2, 0.2, 0.22, 1.0]
+- name: range_backguard  # y -1.883..-1.783, z 0.914..1.194
+  type: box
+  size: [0.3795, 0.05, 0.14]
+  pos: [0.8595, -1.833, 1.054]
+  rgba: [0.2, 0.2, 0.22, 1.0]
+- name: range_handle  # oven door bar; x 0.530..1.189, y -1.222..-1.172, z 0.600..0.630
+  type: box
+  size: [0.3295, 0.025, 0.015]
+  pos: [0.8595, -1.197, 0.615]
+  rgba: [0.75, 0.75, 0.77, 1.0]
+- name: counter  # drawer cabinet between range and fridge; x 0.075..0.480, y -1.889..-1.279
+  type: box
+  size: [0.2025, 0.305, 0.457]
+  pos: [0.2775, -1.584, 0.457]
+  rgba: [0.76, 0.62, 0.4, 1.0]
+- name: upper_cabinet  # x 0.075..1.289, y -1.883..-1.578, z 1.372..2.134
+  type: box
+  size: [0.607, 0.1525, 0.381]
+  pos: [0.682, -1.7305, 1.753]
+  rgba: [0.76, 0.62, 0.4, 1.0]
+- name: kitchen_wall  # x -1.00..1.50, y -1.933..-1.883, z 0..2.40
+  type: box
+  size: [1.25, 0.025, 1.2]
+  pos: [0.25, -1.908, 1.2]
+  rgba: [0.9, 0.9, 0.88, 1.0]
+# --- AprilTag plates (tagStandard41h12; non-collidable, textured; see header) ---------------
+- name: tag_0  # fridge +X side panel, upper; centre (0.075, -1.314, 1.426); plate normal +X
+  type: box
+  size: [0.0005, 0.1024, 0.1024]
+  pos: [0.0755, -1.314, 1.426]
+  texture: textures/tagStandard41h12_00000.png
+  collidable: false
+- name: tag_4  # fridge +X side panel, lower; centre (0.076, -1.142, 0.543); plate normal +X
+  type: box
+  size: [0.0005, 0.1024, 0.1024]
+  pos: [0.0755, -1.142, 0.543]
+  texture: textures/tagStandard41h12_00004.png
+  collidable: false
+- name: tag_1  # fridge upper door (+Y face y = -1.027); centre (-0.360, -1.027, 1.489)
+  type: box
+  size: [0.0005, 0.1024, 0.1024]
+  pos: [-0.36, -1.0262, 1.489]
+  quat: [0.70710678, 0.0, 0.0, 0.70710678]  # yaw +90: plate normal +Y, tag right = -X
+  texture: textures/tagStandard41h12_00001.png
+  collidable: false
+- name: tag_3  # range oven door (+Y face y = -1.222); centre (0.616, -1.222, 0.498)
+  type: box
+  size: [0.0005, 0.1024, 0.1024]
+  pos: [0.616, -1.2215, 0.498]
+  quat: [0.70710678, 0.0, 0.0, 0.70710678]
+  texture: textures/tagStandard41h12_00003.png
+  collidable: false
+graspable: [fridge_door_handle, fridge_drawer_handle, range_handle]
+allowed_pairs:
+- [view_rail_platform, table]
+- [grip_rail_platform, table]
+- [view_link2, view_link4]  # 1.78 cm at the factory zero posture (see header)
+- [grip_link2, grip_link4]
+keyframe:  # [rail, j1..j7]; view = the GELLO hold posture (rail 0), grip = mavis_v2's initial state
+  view:
+    q: [0.0, 2.646, -1.598, 0.018, 1.637, 0.25, 2.007, 0.029]
+  grip:
+    q: [0.65, 3.141592653589793, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    gripper: 1.0

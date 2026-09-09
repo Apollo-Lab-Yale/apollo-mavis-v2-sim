@@ -32,9 +32,22 @@ def test_rail_and_camera_assets_vendored():
 
 
 def test_upstream_files_record_commit_hashes():
-    for d in ("ufactory_xarm7", "rail", "cameras"):
+    for d in ("ufactory_xarm7", "rail", "cameras", "textures"):
         text = asset_path(d, "UPSTREAM").read_text(encoding="utf-8")
         assert "commit:" in text and "source:" in text and "license:" in text
+
+
+def test_apriltag_textures_vendored():
+    """The mavis_v2_kitchen tag plates (16-gello §10): AprilRobotics apriltag-imgs
+    tagStandard41h12 ids 0 / 1 / 3 / 4 as 704 x 704 PNG FILES (buffer textures would
+    break the persisted scene XML), BSD-2-Clause provenance beside them."""
+    for n in ("00000", "00001", "00003", "00004"):
+        png = asset_path("textures", f"tagStandard41h12_{n}.png")
+        assert png.is_file() and png.stat().st_size > 1000
+        assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    for name in ("LICENSE", "UPSTREAM"):
+        assert asset_path("textures", name).is_file()
+    assert "BSD 2-Clause" in asset_path("textures", "LICENSE").read_text(encoding="utf-8")
 
 
 def test_child_models_present():
@@ -52,6 +65,8 @@ def test_asset_manifest_hashes_match():
     assert "rail/linear_motor_rail.stl" in manifest
     assert "ufactory_xarm7/assets/link_base.stl" in manifest
     assert "xarm7_on_rail.xml" in manifest
+    assert "textures/tagStandard41h12_00000.png" in manifest
+    assert "scenes/mavis_v2_kitchen.yaml" in manifest
 
 
 def test_asset_path_raises_on_missing():

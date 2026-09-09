@@ -1,14 +1,16 @@
 # Third-party licenses
 
-All vendored third-party assets in this repository are BSD-3-Clause licensed.
-No GPL assets. Provenance (source repo, commit hash, file list) is recorded
-in an `UPSTREAM` file next to each vendored directory:
+All vendored third-party assets in this repository are BSD licensed (3-Clause
+for the robot / rail / camera meshes, 2-Clause for the AprilTag images). No GPL
+assets. Provenance (source repo, commit hash, file list) is recorded in an
+`UPSTREAM` file next to each vendored directory:
 
 | Directory | Upstream | License |
 |---|---|---|
 | `src/apollo_mavis_v2_sim/assets/ufactory_xarm7/` | google-deepmind/mujoco_menagerie @ `da76818e269b82289eba39808e2fb91d679d6994` | BSD-3-Clause (UFACTORY Inc.) |
 | `src/apollo_mavis_v2_sim/assets/rail/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
 | `src/apollo_mavis_v2_sim/assets/cameras/` | M4D-SC1ENTIST/mavis_mujoco @ `ea233197700047a2f40af3e4817083504b153199` | BSD-3-Clause (inherited from menagerie) |
+| `src/apollo_mavis_v2_sim/assets/textures/` | AprilRobotics/apriltag-imgs @ `f3fd9a7add5bfd82a886fc65240fdb8e3c9ac5a1` (tagStandard41h12 ids 0, 1, 3, 4, scaled 64x with a one-bit margin) | BSD-2-Clause (The Regents of The University of Michigan; text in that directory's `LICENSE`) |
 
 `ASSET_MANIFEST.json` (in `src/apollo_mavis_v2_sim/assets/`) records the sha256
 of every vendored asset so recorded episodes can be replayed against a

@@ -1,0 +1,17 @@
+source: https://github.com/AprilRobotics/apriltag-imgs
+path: tagStandard41h12/
+commit: f3fd9a7add5bfd82a886fc65240fdb8e3c9ac5a1 (master, 2026-01-19)
+vendored: 2026-09-09
+license: BSD-2-Clause (The Regents of The University of Michigan; see LICENSE)
+files: tagStandard41h12_00000.png, tagStandard41h12_00001.png,
+  tagStandard41h12_00003.png, tagStandard41h12_00004.png
+notes: |
+  AprilTag textures for the mavis_v2_kitchen digital twin (16-gello §3 / §10):
+  the four tags on the lab kitchen's fridge (ids 0, 4 on the +X side panel, 1
+  on the upper door) and range (id 3 on the oven door), measured 2026-09-09.
+  Each file is the upstream 9x9-bit master (tag41_12_0000N.png) scaled 64x
+  nearest-neighbour with ONE white bit of margin all round -> 11 bits = 704 px,
+  8-bit grayscale. On a plate of 0.205 m (sheet with margin) a bit is 18.6 mm
+  and the detected quad (the inner 5 bits of this family) 0.0931 m, matching
+  the real sheets. Used as MuJoCo 2D file textures (builder.py, texuniform
+  false); the renderer maps the whole texture onto each box face.

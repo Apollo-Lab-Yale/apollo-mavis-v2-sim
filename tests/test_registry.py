@@ -1,7 +1,8 @@
 """Scene registry listing: ``hidden`` dev scenes and display ``title`` (03-sim §4).
 
-The UI/API see exactly one scene (the lab cell); the eight dev/CI scenes stay
-in the package -- built by id -- but are filtered from ``REGISTRY.list()``.
+The UI/API see exactly one scene (the lab cell); the eight dev/CI scenes and the
+hidden GELLO kitchen twin stay in the package -- built by id -- but are filtered
+from ``REGISTRY.list()``.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ import pytest
 
 from apollo_mavis_v2_sim import REGISTRY
 
+KITCHEN = "mavis_v2_kitchen"  # the GELLO twin: hidden, selected implicitly (16-gello D6)
 DEV_SCENES = {
     "single_rail",
     "single_fixed_tabletop",
@@ -33,10 +35,13 @@ def test_list_hides_dev_scenes_by_default():
 
 def test_list_include_hidden_returns_every_descriptor():
     rows = REGISTRY.list(include_hidden=True)
-    assert {m.id for m in rows} == DEV_SCENES | {"mavis_v2"}
+    assert {m.id for m in rows} == DEV_SCENES | {"mavis_v2", KITCHEN}
     assert all(m.hidden for m in rows if m.id in DEV_SCENES)
     assert all(m.title is None for m in rows if m.id in DEV_SCENES)
     assert [m.id for m in rows if not m.hidden] == ["mavis_v2"]
+    # the GELLO kitchen twin (16-gello D6): hidden like a dev scene, titled like the lab cell
+    (kitchen,) = [m for m in rows if m.id == KITCHEN]
+    assert kitchen.hidden is True and kitchen.title == "APOLLO MAVIS V2 Kitchen (GELLO)"
 
 
 @pytest.mark.parametrize("scene_id", sorted(DEV_SCENES))

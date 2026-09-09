@@ -21,7 +21,7 @@ from apollo_mavis_v2_sim.scenes.builder import (
 )
 
 ALL_SCENES = ["single_fixed_tabletop", "single_rail", "dual_rail_tabletop",
-              "triple_rail_row", "dual_mixed", "mavis_v2"]
+              "triple_rail_row", "dual_mixed", "mavis_v2", "mavis_v2_kitchen"]
 
 
 @pytest.mark.parametrize("scene_id", ALL_SCENES)

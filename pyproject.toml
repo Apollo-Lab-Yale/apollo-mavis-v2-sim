@@ -20,6 +20,7 @@ dev = [
     "pytest-cov",
     "ruff>=0.6",
     "mypy>=1.10",
+    "pupil-apriltags>=1.0.4.post11",
 ]
 
 [tool.uv.sources]

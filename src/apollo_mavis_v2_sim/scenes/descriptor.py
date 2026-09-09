@@ -85,16 +85,74 @@ class CameraSpec(BaseModel):
     fovy: float = 45.0
 
 
+MJ_NGROUP = 6  # MuJoCo geom groups 0..5 (mjNGROUP)
+
+
+def _asset_relative(path: str, what: str) -> str:
+    """An asset-relative POSIX path under ``assets/`` (``textures/tag.png``): no
+    absolute paths, no ``..`` -- the builder resolves it through ``asset_path``
+    and persists only the relative name in the scene XML."""
+    if not path or path.startswith("/") or ".." in path.split("/") or "\\" in path:
+        raise ValueError(
+            f"{what} must be an asset-relative path like 'textures/tag.png', got {path!r}"
+        )
+    return path
+
+
 class EnvironmentSpec(BaseModel):
-    """Static environment geom (phase-02: plane | box; meshes are phase-03+)."""
+    """Static world geom: ``plane`` | ``box`` | ``mesh`` (03-sim §4.1).
+
+    ``mesh`` geoms (implemented 2026-09-09 for file meshes, 16-gello §10) reference
+    an asset-relative STL/OBJ through ``mesh`` and scale it with ``scale``; their
+    collider is MuJoCo's convex hull of the mesh. ``texture`` (asset-relative PNG)
+    becomes a 2D texture + material (``texuniform: false``) on the geom -- FILES only,
+    because ``spec.to_xml()`` refuses buffer textures and the XML is persisted with
+    every episode. ``collidable: false`` sets ``contype = conaffinity = 0`` (never a
+    monitored pair, never in the twin's inflation) and puts the geom in group 1 unless
+    ``group`` says otherwise; ``group`` alone overrides MuJoCo's default group 0.
+    """
 
     model_config = ConfigDict(frozen=True)
     name: str
-    type: Literal["plane", "box"]
-    size: tuple[float, float, float]
+    type: Literal["plane", "box", "mesh"]
+    size: tuple[float, float, float] | None = None  # plane / box: required; mesh: use scale
     pos: tuple[float, float, float] = (0.0, 0.0, 0.0)
     quat: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)
     rgba: tuple[float, float, float, float] = (0.5, 0.5, 0.5, 1.0)
+    mesh: str | None = None  # asset-relative STL/OBJ, type mesh only
+    scale: tuple[float, float, float] = (1.0, 1.0, 1.0)  # mesh scale
+    texture: str | None = None  # asset-relative PNG -> 2D texture + material
+    collidable: bool = True
+    group: int | None = None  # MuJoCo geom group 0..5; None = MuJoCo default (1 if not collidable)
+
+    @model_validator(mode="after")
+    def _check(self) -> EnvironmentSpec:
+        if self.type == "mesh":
+            if self.mesh is None:
+                raise ValueError(f"environment geom {self.name!r}: type mesh requires 'mesh'")
+            if self.size is not None:
+                raise ValueError(
+                    f"environment geom {self.name!r}: a mesh geom is sized by 'scale', not 'size'"
+                )
+            _asset_relative(self.mesh, f"environment geom {self.name!r} mesh")
+        else:
+            if self.mesh is not None:
+                raise ValueError(
+                    f"environment geom {self.name!r}: 'mesh' is only valid with type mesh "
+                    f"(got type {self.type!r})"
+                )
+            if self.size is None:
+                raise ValueError(
+                    f"environment geom {self.name!r}: type {self.type} requires 'size'"
+                )
+        if self.texture is not None:
+            _asset_relative(self.texture, f"environment geom {self.name!r} texture")
+        if self.group is not None and not 0 <= self.group < MJ_NGROUP:
+            raise ValueError(
+                f"environment geom {self.name!r}: group must be in [0, {MJ_NGROUP - 1}], "
+                f"got {self.group}"
+            )
+        return self
 
 
 class KeyframeArm(BaseModel):
@@ -134,6 +192,11 @@ class SceneDescriptor(BaseModel):
     # labels: world geoms by geom name ("table"), arm bodies as
     # "<arm_id>_<body>" ("grip_rail_platform"). Unknown labels fail the build.
     allowed_pairs: tuple[tuple[str, str], ...] = ()
+    # World geom names a session may whitelist against a gripper (16-gello D7:
+    # `fridge_door_handle`, ...): the twin's ``set_grasp_whitelist(arm, graspable)``
+    # drops finger <-> handle pairs while every arm link stays gated against every
+    # appliance body. Validated at build against the built model's world geoms.
+    graspable: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def _cross_field(self) -> SceneDescriptor:
@@ -149,6 +212,15 @@ class SceneDescriptor(BaseModel):
         names = [c.name for c in self.cameras] + [e.name for e in self.environment]
         if len(set(names)) != len(names):
             raise ValueError(f"camera/environment names must be unique, got {names}")
+        if len(set(self.graspable)) != len(self.graspable) or not all(self.graspable):
+            raise ValueError(f"graspable names must be unique and non-empty, got {self.graspable}")
+        env_by_name = {e.name: e for e in self.environment}
+        for g in self.graspable:
+            env = env_by_name.get(g)
+            if env is not None and not env.collidable:
+                raise ValueError(
+                    f"graspable geom {g!r} is not collidable -- a grasp whitelist on it is a no-op"
+                )
         if self.keyframe is not None:
             for arm_id, kf in self.keyframe.items():
                 arm = next((a for a in self.arms if a.id == arm_id), None)
@@ -192,10 +264,12 @@ class SceneMeta:
     title: str | None = None  # display name; runtime label = title or description
     hidden: bool = False  # filtered from SceneRegistry.list() by default
     microphones: dict[str, bool] = field(default_factory=dict)  # per arm id, post-override
+    graspable: tuple[str, ...] = ()  # world geoms a session may whitelist against a gripper
 
 
 __all__ = [
     "ARM_MODELS",
+    "MJ_NGROUP",
     "SceneOptions",
     "OffscreenSpec",
     "SceneView",
