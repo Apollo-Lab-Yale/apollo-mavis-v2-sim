@@ -47,6 +47,8 @@ select = ["E", "F", "I", "UP", "B", "TID251"]
 "cv2".msg = "sim must not import cv2"
 "apollo_mavis_v2_hardware".msg = "sim must not import the hardware package"
 "apollo_mavis_v2_runtime".msg = "sim must not import the runtime package"
+"dora".msg = "sim must not import dora"
+"pyarrow".msg = "sim must not import pyarrow"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -51,7 +51,7 @@ adding or editing a scene run `uv run python -m apollo_mavis_v2_sim.tools.gen_as
 | `single_rail`, `single_fixed_tabletop` | 1 | hidden | dev defaults (runtime `configs/sim.yaml`) |
 | `dual_rail_tabletop`, `dual_mixed`, `triple_rail_row` | 2–3 | hidden | composition coverage |
 | `guardrail_env`, `guardrail_face`, `guardrail_rail` | 1–2 | hidden | safety CI cells |
-| `mavis_v2` | 2 | **APOLLO MAVIS V2 Digital Twin** | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.5 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the left end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
+| `mavis_v2` | 2 | **APOLLO MAVIS V2 Digital Twin** | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.0 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the left end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
 
 `REGISTRY.list()` returns only the visible scene (`hidden: true` scenes are filtered
 unless `list(include_hidden=True)`); `descriptor()/meta()/build()` resolve every id.

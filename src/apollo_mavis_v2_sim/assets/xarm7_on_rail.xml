@@ -94,8 +94,9 @@
          reference model implied 0.2476 m to the boss and centred the platform on
          the mesh at mid-travel: a 4 cm error that put the twin's arms too far
          from the zero end (03-sim 4.3). The mesh is 1.0926 m against the real
-         1.075 m, so anchoring the zero end leaves the FAR end 0.3 cm long --
-         deliberate: the zero end is the one with the obstacle. -->
+         1.075 m; with the zero end anchored (x0 = 0.2800, 2026-09-06) the drawn
+         rail's -X end stops 0.24 cm SHORT of the table's -X edge -- deliberate:
+         the zero end is the one with the obstacle. -->
     <body name="rail_base">
       <inertial pos="0 0 0" mass="10" diaginertia="1 1 1"/>
       <geom name="rail" type="mesh" material="black" mesh="linear_motor_rail"

@@ -7,6 +7,14 @@ initialization; the RUNTIME entrypoint owns that (this module never touches
 environment variables). Each source keeps a private ``MjData`` (never the
 physics one); inputs arrive via depth-1 latest-qpos slots and outputs leave
 via depth-1 latest-frame slots.
+
+Depth (phase-12, 03-sim §7): a ``StreamSpec(depth=True)`` stream renders a
+depth image right after its colour image from the SAME ``mjvScene`` (no second
+``update_scene``; verified pixel-identical) and publishes both in ONE
+``CameraFrame`` (``rgb`` + ``depth`` uint16 mm, ``depth_scale_m`` 0.001), so the
+two are ``seq``-aligned by construction. Renderers are shared per
+(source, h, w); the depth toggle is always restored in a ``finally`` so a
+colour-only stream on the same renderer keeps its exact v1 cost and output.
 """
 
 from __future__ import annotations
@@ -33,7 +41,7 @@ class StreamSpec:
     width: int = 640
     height: int = 480
     fps: float = 30.0
-    depth: bool = False  # reserved; depth rendering is off in v1 (03-sim §7)
+    depth: bool = False  # depth sibling image (uint16 mm) in CameraFrame.depth; phase-12, 03-sim §7
     show_inflation: bool = False  # twin debug: geom group 3 visible
 
 
@@ -51,6 +59,10 @@ class _Stream:
         self.spec = spec
         self.frame_slot: LatestSlot = LatestSlot()
         self.buffer = np.empty((spec.height, spec.width, 3), dtype=np.uint8)
+        # Depth scratch (metres, float32 as mujoco.Renderer reads it back), allocated once.
+        self.depth_m: np.ndarray | None = (
+            np.empty((spec.height, spec.width), dtype=np.float32) if spec.depth else None
+        )
         self.next_t = 0.0
         self.seq = 0
         self.dead = False
@@ -76,8 +88,6 @@ class RenderService:
             self._sources[source] = _Source(model)
 
     def add_stream(self, spec: StreamSpec) -> None:
-        if spec.depth:
-            raise NotImplementedError("depth rendering is off in v1 (03-sim §7)")
         with self._lock:
             if spec.source not in self._sources:
                 raise ValueError(f"unknown render source {spec.source!r}")
@@ -172,11 +182,23 @@ class RenderService:
         camera = spec.camera if spec.camera is not None else -1
         renderer.update_scene(src.data, camera=camera, scene_option=stream.scene_option)
         renderer.render(out=stream.buffer)  # zero-alloc into the stream buffer
+        depth_mm: np.ndarray | None = None
+        if stream.depth_m is not None:
+            # Same mjvScene as the colour pass: no second update_scene needed. The toggle
+            # is per renderer and renderers are shared, so ALWAYS restore colour mode.
+            renderer.enable_depth_rendering()
+            try:
+                renderer.render(out=stream.depth_m)
+            finally:
+                renderer.disable_depth_rendering()
+            depth_mm = depth_m_to_u16_mm(stream.depth_m)
         stream.seq += 1
         stream.frame_slot.put(
             CameraFrame(
                 camera_id=spec.stream_id,
                 rgb=stream.buffer.copy(),  # published frames are immutable
+                depth=depth_mm,  # fresh array from astype; None for colour-only streams
+                depth_scale_m=0.001,
                 t_mono=time.monotonic(),
                 wallclock_ns=time.time_ns(),
                 seq=stream.seq,
@@ -184,4 +206,17 @@ class RenderService:
         )
 
 
-__all__ = ["StreamSpec", "RenderService"]
+def depth_m_to_u16_mm(depth_m: np.ndarray) -> np.ndarray:
+    """Metres (float) -> uint16 millimetres, the RealSense z16 convention.
+
+    Values >= 65.535 m saturate at 65535; negatives clamp to 0; non-finite -> 0
+    (MuJoCo returns the far plane for background, so this is defensive only).
+    Always returns a NEW array (the input scratch buffer is reused by the caller).
+    """
+    mm = np.rint(depth_m * np.float32(1000.0))
+    mm[~np.isfinite(mm)] = 0.0
+    np.clip(mm, 0.0, 65535.0, out=mm)
+    return mm.astype(np.uint16)
+
+
+__all__ = ["StreamSpec", "RenderService", "depth_m_to_u16_mm"]

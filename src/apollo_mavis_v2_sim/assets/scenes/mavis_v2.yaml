@@ -154,7 +154,7 @@
 #   camera-only arm may carry it (ArmSpec validator: wrist_cam true, gripper none).
 id: mavis_v2
 title: APOLLO MAVIS V2 Digital Twin
-description: MAVIS v2 cell - Perception Arm (view) on the outer rail + Manipulation Arm (grip) 39.5 cm
+description: MAVIS v2 cell - Perception Arm (view) on the outer rail + Manipulation Arm (grip) 39.0 cm
   inward, 1.215 x 0.62 table, obstacle at the left end of the channel
 suitable_for: [sim, twin]
 arms:

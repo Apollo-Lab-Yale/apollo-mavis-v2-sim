@@ -55,6 +55,12 @@ from ..workcell import CTRL_DT, SimWorkcell
 DT = CTRL_DT  # 100 Hz virtual tick
 SAFETY_DEBUG_INFLATION_M = 0.025  # un-surveyed-cell delta (11-safety §6.2)
 ESCAPE_EPS_M = 1e-5  # strict-opening margin, §7 step 6
+# A4: the MEASURED clearance of the blocked pairs may sag this much below its value at
+# the twist reversal while every accepted command opens them - physical compliance,
+# not a gate decision: the sim carriage yields ~0.5 mm under the arm swing of the
+# reversed twist (cross_arm_rail_converge, ik=off, 2026-09-09; before that day the arm
+# froze inside the hysteresis band, which hid it).
+A4_COMPLIANCE_TOL_M = 1e-3
 TARGET_LEASH_POS_M = 0.03  # teleop target leash around FK(q_meas) (04-runtime §6):
 TARGET_LEASH_ROT_RAD = 0.5  # a gate hold must not let the target run away
 
@@ -93,6 +99,9 @@ class ScenarioResult:
     first_block_pair: tuple[str, str] | None = None
     recompute_diff: float | None = None  # A2 mj_geomDistance cross-check
     escape_clearances: list[float] = field(default_factory=list)
+    # A4: max over accepted escape ticks and gate-constrained pairs of d_meas - d_cmd
+    # (> 0 would mean the gate let a CLOSING command through); -inf until measured
+    escape_closing_max: float = float("-inf")
     resumed: bool = False
     ticks_run: int = 0
 
@@ -160,9 +169,17 @@ class SafetyGate:
         # makes event dists A2-recomputable to machine precision).
         d_cmd = {p: self.twin.pair_distance(p, q_cmd, 0.5) for p in viols}
         d_meas = {p: self.twin.pair_distance(p, None, 0.5) for p in viols}
-        meas_viols = {
-            p for p, d in d_meas.items() if d < self.twin.inflation_m + self.cfg.min_clearance_m
-        }
+        # "Violating at q_meas" uses the same step-3 window as the command: while blocked
+        # the hysteresis band counts, else a pair the escape has already opened past δ
+        # (measured 8.03 mm, commanded 8.16 mm) would read as NEW and step 7 would hold
+        # the arm inside the band for good - a plan executed at 10 / 50 % speed cannot
+        # jump the 2 mm band in one tick (2026-09-09, tests/test_plan_passes_gate.py).
+        meas_thr = (
+            self._unblock_threshold()
+            if self._blocked
+            else self.twin.inflation_m + self.cfg.min_clearance_m
+        )
+        meas_viols = {p for p, d in d_meas.items() if d < meas_thr}
         q_out: dict[str, np.ndarray] = {}
         for arm_id, q in q_cmd.items():
             if arm_id not in offending:
@@ -503,12 +520,24 @@ def run_scenario(
                 twist = -twist0  # reverse the input: escape phase (A4)
                 res.reversal_tick = tick
         if res.reversal_tick is not None and res.cleared_tick is None and block_pairs:
-            # A4 series on the MEASURED config: physical clearance must not
-            # shrink during the escape (commanded configs mix hold/escape
-            # reference frames and are not comparable tick-to-tick).
+            # A4 series on the MEASURED config: the physical clearance of the pairs
+            # that blocked must not fall (beyond compliance) below where the escape
+            # began. Commanded configs mix hold / escape reference frames and are
+            # not comparable tick-to-tick ...
             res.escape_clearances.append(
                 min(twin.pair_distance(p, None, 0.5) for p in block_pairs)
             )
+            # ... so the gate's step-6 contract is checked per ACCEPTED tick instead:
+            # every pair it constrained this tick (contact or hysteresis band) is at
+            # least as open at q_cmd as at q_meas. Since 2026-09-09 the escape walks
+            # THROUGH the band (it used to freeze there), so this is where a gate that
+            # accepted a closing command would show. ``gate._block_pairs`` is read AFTER
+            # ``filter`` (the post-update set of this tick); ``A4_COMPLIANCE_TOL_M`` below
+            # excuses the sim carriage's compliance only, never a gate decision.
+            if np.array_equal(q_sent[s.driven_arm], q_cmd[s.driven_arm]):
+                for p in gate._block_pairs:
+                    closing = twin.pair_distance(p, None, 0.5) - twin.pair_distance(p, q_cmd, 0.5)
+                    res.escape_closing_max = max(res.escape_closing_max, float(closing))
         if res.cleared_tick is not None:
             assert q_cleared is not None
             if float(np.max(np.abs(q_sent[s.driven_arm] - q_cleared))) > 1e-4:
@@ -545,12 +574,17 @@ def _assert_gate_contract(s: GuardrailScenario, res: ScenarioResult) -> list[str
             fails.append(
                 f"A4: cleared after {res.cleared_tick - res.reversal_tick} ticks (>100)"
             )
-        drops = [
-            b - a
-            for a, b in zip(res.escape_clearances, res.escape_clearances[1:], strict=False)
-        ]
-        if drops and min(drops) < -1e-4:
-            fails.append(f"A4: escape clearance decreased by {-min(drops):.2e} m")
+        if res.escape_closing_max > 0.0:
+            fails.append(
+                f"A4: an accepted escape command closed a blocked pair by "
+                f"{res.escape_closing_max:.2e} m"
+            )
+        series = res.escape_clearances
+        if series and min(series) < series[0] - A4_COMPLIANCE_TOL_M:
+            fails.append(
+                f"A4: measured clearance fell {series[0] - min(series):.2e} m below the "
+                "reversal"
+            )
         if not res.resumed:
             fails.append("A4: motion did not resume after 'cleared'")
     return fails

@@ -34,6 +34,7 @@ from apollo_mavis_v2_core import (
 )
 
 from .errors import TwinAuditError
+from .scenes.addressing import N_ARM_JOINTS
 from .scenes.builder import BuiltScene
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
 
 TWIN_SOURCE = "twin"
 DEFAULT_INFLATION_M = 0.008  # TOTAL pair inflation δ (SafetyConfig.geom_inflation_m)
+DEFAULT_HYSTERESIS_M = 0.002  # the gate's unblock band above δ (SafetyConfig.hysteresis_m)
 
 Pair = frozenset  # frozenset({label1, label2})
 
@@ -173,12 +175,17 @@ class DigitalTwin:
         inflation_m: float = DEFAULT_INFLATION_M,
         render_service: RenderService | None = None,
         allowed_pairs_extra: Iterable[tuple[str, str]] = (),
+        hysteresis_m: float = DEFAULT_HYSTERESIS_M,
     ) -> None:
         self.scene = scene
         self.model = scene.model
         self.data = mujoco.MjData(scene.model)
         self.addr = scene.addressing
         self.inflation_m = float(inflation_m)
+        # The gate's hysteresis band above δ (SafetyConfig.hysteresis_m): not used by the
+        # twin's own checks, carried for the planner, which escapes a start inside the
+        # band exactly like one inside the shell (planner.py module docstring).
+        self.hysteresis_m = float(hysteresis_m)
         apply_inflation(self.model, self.inflation_m)
         # Sources (11-safety §6.3): (a) scene-authored structural pairs,
         # (b) config allowed_pairs_extra, plus the built-in rail-vs-plane rule.
@@ -190,6 +197,7 @@ class DigitalTwin:
         self.allowed = AllowedPairs(self.model, extra=extra)
         self.monitored_pairs = build_monitored_pairs(self.model, self.addr, self.allowed)
         self._geoms_of_label = self._build_label_index()
+        self._arms_of_label = self._build_arms_of_label()
         self._gripper_labels = self._build_gripper_labels()
         self._render_service = render_service
         if render_service is not None:
@@ -229,6 +237,39 @@ class DigitalTwin:
             if collidable[g]:
                 index.setdefault(self.allowed.label_of_geom(g), []).append(g)
         return {label: np.array(gids, dtype=np.intp) for label, gids in index.items()}
+
+    def _build_arms_of_label(self) -> dict[str, tuple[str, ...]]:
+        """Label -> the arms whose JOINTS move it (11-safety §7.1 step 5 "owning").
+
+        Kinematic ownership, not the ``<arm_id>_`` name prefix (2026-09-09 fuzz): a body
+        hanging below one of an arm's dofs (its seven joints or its rail joint) is that
+        arm's - links, carriage, arm base, gripper, camera mount, microphone; the static
+        rail base (``<arm_id>_rail_base``, a child of ``world`` with no joint) and the
+        world geoms belong to NO arm. By prefix the Perception Arm's camera mount pinched
+        against the Manipulation Arm's rail read as a pair of BOTH arms, so the gate
+        demanded that the Manipulation Arm open a distance no joint of it can change and
+        held it for good (planned returns held from their first tick; teleop frozen the
+        same way). A label is never owned by two arms.
+        """
+        joint_arm: dict[int, str] = {}
+        for arm_id, a in self.addr.arms.items():
+            names = [f"{arm_id}_joint{i}" for i in range(1, N_ARM_JOINTS + 1)]
+            if a.has_rail:
+                names.append(f"{arm_id}_rail_joint")
+            for name in names:
+                joint_arm[int(self.model.joint(name).id)] = arm_id
+        out: dict[str, tuple[str, ...]] = {}
+        for label in self._geoms_of_label:
+            body = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, label)
+            owners: set[str] = set()
+            while body > 0:  # a world geom's label is not a body: no owner
+                adr = int(self.model.body_jntadr[body])
+                for j in range(adr, adr + int(self.model.body_jntnum[body])):
+                    if j in joint_arm:
+                        owners.add(joint_arm[j])
+                body = int(self.model.body_parentid[body])
+            out[label] = tuple(sorted(owners))
+        return out
 
     def _build_gripper_labels(self) -> dict[str, tuple[str, ...]]:
         """Per arm: labels of gripper bodies (grasp-whitelist scope)."""
@@ -295,11 +336,16 @@ class DigitalTwin:
         return out
 
     def _arms_of_pair(self, pair: tuple[str, str]) -> list[str]:
-        return sorted(
-            arm_id
-            for arm_id in self.addr.arms
-            if any(label.startswith(f"{arm_id}_") for label in pair)
-        )
+        """The arms whose joints can change this pair's distance (kinematic ownership,
+        :meth:`_build_arms_of_label`); a label outside the collidable index falls back to
+        the ``<arm_id>_`` prefix (defensive - contacts only ever carry indexed labels)."""
+        arms: set[str] = set()
+        for label in pair:
+            owners = self._arms_of_label.get(label)
+            if owners is None:
+                owners = tuple(a for a in self.addr.arms if label.startswith(f"{a}_"))
+            arms.update(owners)
+        return sorted(arms)
 
     def check(self, q_by_arm: Mapping[str, np.ndarray]) -> CollisionReport:
         """Collision-check the COMMANDED config, all arms jointly (stateless)."""
@@ -453,6 +499,7 @@ class DigitalTwin:
 
 __all__ = [
     "DEFAULT_INFLATION_M",
+    "DEFAULT_HYSTERESIS_M",
     "TWIN_SOURCE",
     "apply_inflation",
     "geom_labels",

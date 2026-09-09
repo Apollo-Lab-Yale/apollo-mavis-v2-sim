@@ -15,7 +15,11 @@ SIM_SOURCE = "sim"
 
 
 class SimCamera(CameraInterface):
-    """One simulated RGB camera stream rendered from a named MJCF camera."""
+    """One simulated RGB(-D) camera stream rendered from a named MJCF camera.
+
+    ``depth=True`` (phase-12) adds a seq-aligned uint16-mm depth image to every
+    ``CameraFrame`` (``frame.depth``); the default colour-only stream is unchanged.
+    """
 
     def __init__(
         self,
@@ -25,6 +29,7 @@ class SimCamera(CameraInterface):
         resolution: tuple[int, int] = (640, 480),
         fps: float = 30.0,
         source: str = SIM_SOURCE,
+        depth: bool = False,
     ) -> None:
         self._camera_id = camera_id
         self._service = render_service
@@ -35,6 +40,7 @@ class SimCamera(CameraInterface):
             width=resolution[0],
             height=resolution[1],
             fps=fps,
+            depth=depth,
         )
         self._started = False
 

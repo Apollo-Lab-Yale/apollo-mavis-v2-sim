@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -134,6 +134,7 @@ class SimWorkcell(WorkcellInterface):
         config: WorkcellConfig,
         render_service: RenderService | None = None,
         ctrl_hz: float = 100.0,
+        depth_cameras: Iterable[str] = (),  # phase-12: cameras whose frames carry a depth sibling
     ) -> None:
         scene_arms = set(scene.meta.arm_ids)
         wanted = [a.id for a in config.arms]
@@ -166,7 +167,9 @@ class SimWorkcell(WorkcellInterface):
         self.cameras: dict[str, CameraInterface] = {}
         if render_service is not None:
             render_service.register_source(SIM_SOURCE, scene.model)
-            self.cameras = _make_sim_cameras(scene, config, render_service)
+            self.cameras = _make_sim_cameras(
+                scene, config, render_service, depth_cameras=set(depth_cameras)
+            )
         self._reset_and_publish()
 
     @property
@@ -344,11 +347,15 @@ def _tcp_in_base(data: mujoco.MjData, addr: ArmAddress) -> Pose:
 
 
 def _make_sim_cameras(
-    scene: BuiltScene, config: WorkcellConfig, service: RenderService
+    scene: BuiltScene,
+    config: WorkcellConfig,
+    service: RenderService,
+    depth_cameras: set[str] | None = None,
 ) -> dict[str, CameraInterface]:
     from .cameras import SimCamera  # local import: keep module import light
 
     by_id = {c.id: c for c in config.cameras if c.kind == "sim"}
+    depth = depth_cameras or set()
     cameras: dict[str, CameraInterface] = {}
     for name in scene.meta.cameras:
         cfg = by_id.get(name)
@@ -358,6 +365,7 @@ def _make_sim_cameras(
             mjcf_camera=name,
             resolution=cfg.resolution if cfg else (640, 480),
             fps=float(cfg.fps) if cfg else 30.0,
+            depth=(name in depth) or bool(cfg and getattr(cfg, "depth", False)),
         )
     return cameras
 
