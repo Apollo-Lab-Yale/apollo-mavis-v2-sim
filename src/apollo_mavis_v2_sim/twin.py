@@ -383,6 +383,25 @@ class DigitalTwin:
         )
 
     # -- planner fast path ----------------------------------------------------
+    def new_data(self) -> mujoco.MjData:
+        """A PRIVATE ``MjData`` for a worker thread (03-sim §10).
+
+        ``self.data`` belongs to whoever owns the twin — for a session twin that is the
+        100 Hz control loop, through the gate's per-tick :meth:`check`. Any other thread
+        that writes qpos and runs ``mj_collision`` on it corrupts MuJoCo's contact
+        bookkeeping, and the symptom is not a wrong answer but an internal
+        ``mujoco.FatalError`` ("collision function returned 0 contacts for geom pair
+        (…), expected at most -75 from mj_maxContact" — a NEGATIVE budget, i.e. the
+        contact buffer state is inconsistent; hit for real on 2026-09-10 by episode
+        playback verifying a path from the REST thread while the loop gated ticks).
+
+        So a worker takes one of these and passes it to
+        :meth:`check_config_violations` / :meth:`check_config`, which then touch only
+        ``self.model`` and ``self.allowed`` — both read-only — plus their own data. The
+        planner already does exactly this per worker (``planner.py``).
+        """
+        return mujoco.MjData(self.model)
+
     def check_config(
         self, q_full: np.ndarray, *, data: mujoco.MjData | None = None
     ) -> bool:
