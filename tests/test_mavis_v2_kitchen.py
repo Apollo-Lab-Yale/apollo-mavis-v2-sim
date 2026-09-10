@@ -1,4 +1,4 @@
-"""mavis_v2_kitchen — the GELLO Manipulation digital twin (16-gello §3 / §10, phase-15).
+"""mavis_v2_kitchen — the twin of the lab kitchen in front of the cell (03-sim §4.4).
 
 The lab cell of ``mavis_v2`` plus the kitchen the Perception Arm's wrist camera saw
 on 2026-09-09: a GE GDE21ESKSS refrigerator, a 30-inch GE range, the counter run,
@@ -7,7 +7,7 @@ the four AprilTags (tagStandard41h12 ids 0 / 1 / 3 / 4) as non-collidable textur
 plates. Pins: the cell blocks are byte-equal to ``mavis_v2``'s (one geometry
 authority), the boxes match the §3 ranges, the twin audits clean at both inflations
 with the microphone on and off, the handles are graspable, the plates never reach the
-gate, and a render from ``view_wrist_cam`` at the GELLO hold posture reproduces the
+gate, and a render from ``view_wrist_cam`` at the measurement posture reproduces the
 REAL tag detections of the measurement frame (``tests/data/kitchen_tags_20260909.json``).
 """
 
@@ -29,7 +29,7 @@ KITCHEN = "mavis_v2_kitchen"
 GRASPABLE = ("fridge_door_handle", "fridge_drawer_handle", "range_handle")
 TAG_PLATES = {"tag_0": 0, "tag_1": 1, "tag_3": 3, "tag_4": 4}
 HOLD_POSTURE = (2.646, -1.598, 0.018, 1.637, 0.25, 2.007, 0.029)  # J1..J7 rad, rail 0.0
-# 16-gello §3 "Resulting boxes": (x range, y range, z range) in world metres.
+# The scene header's measurement, "Boxes": (x range, y range, z range) in world metres.
 BOX_RANGES = {
     "fridge_body": ((-0.681, 0.075), (-1.856, -1.027), (0.0, 1.775)),
     "fridge_door_handle": ((0.015, 0.045), (-1.027, -0.977), (0.75, 1.65)),
@@ -41,7 +41,7 @@ BOX_RANGES = {
     "upper_cabinet": ((0.075, 1.289), (-1.883, -1.578), (1.372, 2.134)),
     "kitchen_wall": ((-1.00, 1.50), (-1.933, -1.883), (0.0, 2.40)),
 }
-# 16-gello §3 "Tags": measured centres (m) and the face each plate stands on.
+# The scene header's "Tag centres": measured centres (m) and the face each plate stands on.
 TAG_CENTRES = {
     "tag_0": ((0.075, -1.314, 1.426), (1.0, 0.0, 0.0)),
     "tag_4": ((0.076, -1.142, 0.543), (1.0, 0.0, 0.0)),
@@ -80,7 +80,7 @@ def _by_name(rows: list[dict]) -> dict[str, dict]:
 def test_meta_is_hidden_titled_and_declares_the_handles(built, desc):
     m = built.meta
     assert m.id == KITCHEN and m.hidden is True  # mavis_v2 stays the only listed scene
-    assert m.title == desc["title"] == "APOLLO MAVIS V2 Kitchen (GELLO)"
+    assert m.title == desc["title"] == "APOLLO MAVIS V2 Kitchen"
     assert m.suitable_for == {"sim", "twin"}
     assert m.arm_ids == ("view", "grip") and all(m.rail.values())
     assert m.cameras == ("cam_front", "cam_top", "cam_kitchen", "view_wrist_cam", "grip_wrist_cam")
@@ -104,7 +104,7 @@ def test_cell_blocks_are_verbatim_copies_of_mavis_v2(desc, cell):
     assert desc["keyframe"]["grip"] == cell["keyframe"]["grip"]
 
 
-def test_keyframe_puts_the_perception_arm_at_the_gello_hold_posture(built, desc):
+def test_keyframe_puts_the_perception_arm_at_the_measurement_posture(built, desc):
     kf = desc["keyframe"]
     np.testing.assert_allclose(kf["view"]["q"], [0.0, *HOLD_POSTURE])  # rail FIRST
     model, data = built.model, mujoco.MjData(built.model)
@@ -114,7 +114,7 @@ def test_keyframe_puts_the_perception_arm_at_the_gello_hold_posture(built, desc)
     np.testing.assert_allclose(q_view, [*HOLD_POSTURE, 0.0])
     q_grip = data.qpos[built.addressing["grip"].qpos_adr]
     np.testing.assert_allclose(q_grip, [np.pi, 0, 0, 0, 0, 0, 0, 0.65])
-    # 16-gello §3 "Camera pose": the measurement camera, from the twin at this posture
+    # The scene header's "Camera pose": the measurement camera, from the twin at this posture
     cid = model.camera("view_wrist_cam").id
     np.testing.assert_allclose(data.cam_xpos[cid], [0.460, 0.394, 1.579], atol=1e-3)
     axis = -data.cam_xmat[cid].reshape(3, 3)[:, 2]
@@ -322,7 +322,7 @@ def test_tags_detected_from_view_wrist_cam_match_the_real_frame():
 
 @pytest.mark.egl
 def test_cam_kitchen_frames_the_fridge_front_and_the_manipulation_arm(built, desc):
-    """The GELLO launch-preview camera: operator side (+Y), looking -Y and down, image
+    """The kitchen overview camera: operator side (+Y), looking -Y and down, image
     right = -X (the operator convention); the fridge door face and the Manipulation Arm at
     its keyframe project inside the frame."""
     cam = _by_name(desc["cameras"])["cam_kitchen"]

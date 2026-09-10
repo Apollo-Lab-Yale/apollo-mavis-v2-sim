@@ -6,7 +6,7 @@ license: BSD-2-Clause (The Regents of The University of Michigan; see LICENSE)
 files: tagStandard41h12_00000.png, tagStandard41h12_00001.png,
   tagStandard41h12_00003.png, tagStandard41h12_00004.png
 notes: |
-  AprilTag textures for the mavis_v2_kitchen digital twin (16-gello §3 / §10):
+  AprilTag textures for the mavis_v2_kitchen digital twin (03-sim §4.4):
   the four tags on the lab kitchen's fridge (ids 0, 4 on the +X side panel, 1
   on the upper door) and range (id 3 on the oven door), measured 2026-09-09.
   Each file is the upstream 9x9-bit master (tag41_12_0000N.png) scaled 64x

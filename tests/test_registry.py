@@ -1,7 +1,7 @@
 """Scene registry listing: ``hidden`` dev scenes and display ``title`` (03-sim §4).
 
 The UI/API see exactly one scene (the lab cell); the eight dev/CI scenes and the
-hidden GELLO kitchen twin stay in the package -- built by id -- but are filtered
+hidden kitchen twin stay in the package -- built by id -- but are filtered
 from ``REGISTRY.list()``.
 """
 
@@ -11,7 +11,7 @@ import pytest
 
 from apollo_mavis_v2_sim import REGISTRY
 
-KITCHEN = "mavis_v2_kitchen"  # the GELLO twin: hidden, selected implicitly (16-gello D6)
+KITCHEN = "mavis_v2_kitchen"  # hidden: selected explicitly in config, never listed
 DEV_SCENES = {
     "single_rail",
     "single_fixed_tabletop",
@@ -39,9 +39,9 @@ def test_list_include_hidden_returns_every_descriptor():
     assert all(m.hidden for m in rows if m.id in DEV_SCENES)
     assert all(m.title is None for m in rows if m.id in DEV_SCENES)
     assert [m.id for m in rows if not m.hidden] == ["mavis_v2"]
-    # the GELLO kitchen twin (16-gello D6): hidden like a dev scene, titled like the lab cell
+    # the kitchen twin (03-sim §4.4): hidden like a dev scene, titled like the lab cell
     (kitchen,) = [m for m in rows if m.id == KITCHEN]
-    assert kitchen.hidden is True and kitchen.title == "APOLLO MAVIS V2 Kitchen (GELLO)"
+    assert kitchen.hidden is True and kitchen.title == "APOLLO MAVIS V2 Kitchen"
 
 
 @pytest.mark.parametrize("scene_id", sorted(DEV_SCENES))

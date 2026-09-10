@@ -38,7 +38,7 @@ def test_upstream_files_record_commit_hashes():
 
 
 def test_apriltag_textures_vendored():
-    """The mavis_v2_kitchen tag plates (16-gello §10): AprilRobotics apriltag-imgs
+    """The mavis_v2_kitchen tag plates (03-sim §4.4): AprilRobotics apriltag-imgs
     tagStandard41h12 ids 0 / 1 / 3 / 4 as 704 x 704 PNG FILES (buffer textures would
     break the persisted scene XML), BSD-2-Clause provenance beside them."""
     for n in ("00000", "00001", "00003", "00004"):

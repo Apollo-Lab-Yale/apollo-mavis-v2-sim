@@ -52,7 +52,7 @@ adding or editing a scene run `uv run python -m apollo_mavis_v2_sim.tools.gen_as
 | `dual_rail_tabletop`, `dual_mixed`, `triple_rail_row` | 2–3 | hidden | composition coverage |
 | `guardrail_env`, `guardrail_face`, `guardrail_rail` | 1–2 | hidden | safety CI cells |
 | `mavis_v2` | 2 | **APOLLO MAVIS V2 Digital Twin** | **the Apollo lab cell** (measured 2026-09-02): camera-only arm `view` on the outer rail, gripper arm `grip` 39.0 cm inward, 1.215 × 0.62 m table, 0.16 × 0.16 × 0.24 m obstacle at the left end of the channel — twin reference for the real arms; runtime `configs/mavis_v2.yaml` |
-| `mavis_v2_kitchen` | 2 | hidden — title "APOLLO MAVIS V2 Kitchen (GELLO)" | `mavis_v2` + the lab kitchen measured 2026-09-09 (GE GDE21ESKSS fridge, 30-inch GE range, counter, upper cabinets, wall as boxes; four tagStandard41h12 AprilTag plates, textured, non-collidable; `graspable` handles): the GELLO Manipulation twin, selected implicitly by the GELLO card — docs/design/03-sim.md §4.4, 16-gello §3 |
+| `mavis_v2_kitchen` | 2 | hidden — title "APOLLO MAVIS V2 Kitchen" | `mavis_v2` + the lab kitchen measured 2026-09-09 (GE GDE21ESKSS fridge, 30-inch GE range, counter, upper cabinets, wall as boxes; four tagStandard41h12 AprilTag plates, textured, non-collidable; `graspable` handles): the twin of the room the cell stands in. Selected explicitly in config (`digital_twin_scene` / `sim_scene`), never listed by `GET /api/scenes` |
 
 `REGISTRY.list()` returns only the visible scene (`hidden: true` scenes are filtered
 unless `list(include_hidden=True)`); `descriptor()/meta()/build()` resolve every id.

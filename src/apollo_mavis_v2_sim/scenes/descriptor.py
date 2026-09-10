@@ -102,7 +102,7 @@ def _asset_relative(path: str, what: str) -> str:
 class EnvironmentSpec(BaseModel):
     """Static world geom: ``plane`` | ``box`` | ``mesh`` (03-sim §4.1).
 
-    ``mesh`` geoms (implemented 2026-09-09 for file meshes, 16-gello §10) reference
+    ``mesh`` geoms (implemented 2026-09-09 for file meshes, 03-sim §4.1) reference
     an asset-relative STL/OBJ through ``mesh`` and scale it with ``scale``; their
     collider is MuJoCo's convex hull of the mesh. ``texture`` (asset-relative PNG)
     becomes a 2D texture + material (``texuniform: false``) on the geom -- FILES only,
@@ -192,7 +192,7 @@ class SceneDescriptor(BaseModel):
     # labels: world geoms by geom name ("table"), arm bodies as
     # "<arm_id>_<body>" ("grip_rail_platform"). Unknown labels fail the build.
     allowed_pairs: tuple[tuple[str, str], ...] = ()
-    # World geom names a session may whitelist against a gripper (16-gello D7:
+    # World geom names a session may whitelist against a gripper (03-sim §4.4:
     # `fridge_door_handle`, ...): the twin's ``set_grasp_whitelist(arm, graspable)``
     # drops finger <-> handle pairs while every arm link stays gated against every
     # appliance body. Validated at build against the built model's world geoms.

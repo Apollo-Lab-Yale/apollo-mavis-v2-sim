@@ -1,4 +1,4 @@
-"""``EnvironmentSpec`` mesh / texture / collidable / group (03-sim §4.1, 16-gello §10).
+"""``EnvironmentSpec`` mesh / texture / collidable / group (03-sim §4.1 / §4.4).
 
 Textured plates and file meshes for the kitchen twin: the descriptor validates the
 field combinations, the builder emits FILE textures (``spec.to_xml()`` refuses

@@ -1,6 +1,8 @@
-# MAVIS v2 lab cell + the lab KITCHEN — the digital twin of GELLO Manipulation mode
-# (docs/design/16-gello.md §3 / §10; phase-15, 2026-09-09). Hidden from the scene listing:
-# `mavis_v2` stays the only exposed scene; the GELLO card selects this id implicitly.
+# MAVIS v2 lab cell + the lab KITCHEN standing in front of it (measured 2026-09-09).
+# Design record: 03-sim §4.4. Hidden from the scene listing: `mavis_v2` stays the only
+# scene `GET /api/scenes` offers, so this id is selected explicitly in config —
+# `workcells.<kind>.digital_twin_scene` (hardware) or `sim_scene` (sim), which points the
+# GATE and the PLANNER at the appliances too, not just the `*_align` overlays.
 #
 # CELL GEOMETRY IS mavis_v2's. The `arms`, `cameras` cam_front / cam_top, the `table` and
 # `obstacle` geoms, `allowed_pairs` and the Manipulation Arm's keyframe below are copied
@@ -8,9 +10,9 @@
 # that file's header and 03-sim §4.3 hold the cell measurements and their history — edit
 # them THERE, then mirror the change here. This header records only what the kitchen adds.
 #
-# KITCHEN MEASUREMENT, 2026-09-09 (summary of 16-gello §3; edit the numbers there and here
-# together; raw captures in the runtime's var/gello-kitchen-20260909/):
-#   Method. The Perception Arm stood at the GELLO hold posture (J1-J7 [2.646, -1.598, 0.018,
+# KITCHEN MEASUREMENT, 2026-09-09 (THIS header and 03-sim §4.4 are the record; raw captures
+# in the workspace's var/gello-kitchen-20260909/):
+#   Method. The Perception Arm stood at the MEASUREMENT posture (J1-J7 [2.646, -1.598, 0.018,
 #   1.637, 0.25, 2.007, 0.029] rad, rail 0.0 — the `view` keyframe below), controller stopped.
 #   One colour frame of view_wrist (640x480) and 45 depth frames of the same D435i were taken;
 #   the median depth was re-projected into the colour frame with the device's depth->colour
@@ -40,7 +42,7 @@
 #   D 28 in, cooktop 36 in; counter 36 in high, 24 in deep; upper cabinets 12 in deep from
 #   54 to 84 in above the floor. Floor z = 0 is the twin's floor (shared room floor, assumption).
 #   Boxes: `size` = half-extents and `pos` = centre computed from the x / y / z ranges of the
-#   16-gello §3 table (e.g. fridge_body x -0.681..0.075, y -1.856..-1.027, z 0..1.775).
+#   measurement above (e.g. fridge_body x -0.681..0.075, y -1.856..-1.027, z 0..1.775).
 #   ACCURACY: depth at 1.5-2.2 m carries +-2-3 cm and the camera-model convention another
 #   +-2 cm; the spec dimensions are exact only for the measured faces. Treat EVERY appliance
 #   face as +-3 cm until the *_align overlays on this scene have been compared with the real
@@ -58,12 +60,12 @@
 #   therefore keep the identity quat; the door / oven plates (normal +Y) are yawed +90 deg
 #   about z ([0.70710678, 0, 0, 0.70710678]: local +y -> world -X = image right from the
 #   operator side).
-# graspable (16-gello D7): the three handles. A GELLO session whitelists them against the
+# graspable: the three handles. A session may whitelist them against the
 #   Manipulation Arm's gripper (DigitalTwin.set_grasp_whitelist) so the fingers may touch a
 #   handle while every arm link stays gated against every appliance body.
-# cam_kitchen: operator-side overview for the GELLO launch preview — frames the fridge front
+# cam_kitchen: operator-side overview of the kitchen — frames the fridge front
 #   and the Manipulation Arm at its keyframe (image right = -X, the operator convention).
-# Keyframe: Perception Arm at the GELLO hold posture (rail 0 = operator's left end, camera on
+# Keyframe: Perception Arm at the measurement posture (rail 0 = operator's left end, camera on
 #   the kitchen), Manipulation Arm at the mavis_v2 initial state (rail 0.65, folded zero,
 #   joint 1 = pi). Twin audit clean at delta = 0.008 and 0.025, mic off and on (540 / 571
 #   monitored pairs, nothing within 5 cm). tests/test_mavis_v2_kitchen.py renders view_wrist_cam
@@ -72,9 +74,9 @@
 #   640x480 and MuJoCo's mipmapping blurs them at native resolution); the twin's modelled mic
 #   body (unverified, 03-sim 4.3) occludes tag_4 at the bottom-centre of the image.
 id: mavis_v2_kitchen
-title: APOLLO MAVIS V2 Kitchen (GELLO)
+title: APOLLO MAVIS V2 Kitchen
 description: MAVIS v2 cell plus the lab kitchen (GE GDE21ESKSS refrigerator, 30-inch GE range,
-  counter, upper cabinets, wall) with four AprilTags - the GELLO Manipulation digital twin
+  counter, upper cabinets, wall) with four AprilTags - the twin of the room the cell sits in - twin
 hidden: true
 suitable_for: [sim, twin]
 arms:
@@ -116,7 +118,7 @@ environment:
   size: [0.08, 0.08, 0.12]
   pos: [0.5275, -0.045, 0.855]
   rgba: [0.75, 0.22, 0.2, 1.0]
-# --- kitchen (16-gello §3 table; size = half-extents, pos = centre) ---------------------
+# --- kitchen (the header's measurement; size = half-extents, pos = centre) ---------------------
 - name: fridge_body  # GE GDE21ESKSS case + doors; x -0.681..0.075, y -1.856..-1.027, z 0..1.775
   type: box
   size: [0.378, 0.4145, 0.8875]
@@ -195,7 +197,7 @@ allowed_pairs:
 - [grip_rail_platform, table]
 - [view_link2, view_link4]  # 1.78 cm at the factory zero posture (see header)
 - [grip_link2, grip_link4]
-keyframe:  # [rail, j1..j7]; view = the GELLO hold posture (rail 0), grip = mavis_v2's initial state
+keyframe:  # [rail, j1..j7]; view = the measurement posture (rail 0), grip = mavis_v2's initial state
   view:
     q: [0.0, 2.646, -1.598, 0.018, 1.637, 0.25, 2.007, 0.029]
   grip:
